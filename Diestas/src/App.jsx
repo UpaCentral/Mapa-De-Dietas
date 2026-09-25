@@ -12,8 +12,9 @@ import {
   calcularIdade,
   novoValorDataHora,
 } from './data';
+import { resolveApiBase } from './api';
 
-const API_BASE = 'http://localhost:3001/api';
+const API_BASE = resolveApiBase(window.location);
 
 const initialForm = {
   id: null,
