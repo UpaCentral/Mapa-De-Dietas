@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   defaultCompanions,
   defaultDietas,
@@ -12,6 +12,8 @@ import {
   calcularIdade,
   novoValorDataHora,
 } from './data';
+
+const API_BASE = 'http://localhost:3001/api';
 
 const initialForm = {
   id: null,
@@ -74,6 +76,28 @@ const seedData = [
   },
 ];
 
+function normalizePaciente(row = {}) {
+  return {
+    id: row.id ?? null,
+    internacao: row.internacao || row.data_internacao || novoValorDataHora(),
+    setor: row.setor || row.setor_nome || '',
+    leito: row.leito || row.leito_nome || '',
+    status: row.status || row.horario_refeicao || defaultStatus[0],
+    prontuario: row.prontuario || '',
+    nome: row.nome || '',
+    nascimento: row.nascimento || row.data_nascimento || '',
+    idade: row.idade || calcularIdade(row.nascimento || row.data_nascimento) || '',
+    mae: row.mae || '',
+    acompanhante: row.acompanhante || defaultCompanions[0],
+    via: row.via || defaultVias[0],
+    justAcompanhante: row.justAcompanhante || row.justificativa_acompanhante || '',
+    dieta: row.dieta || '',
+    restricao: row.restricao || '',
+    alergias: row.alergias || '',
+    obs: row.obs || row.observacoes || '',
+  };
+}
+
 function App() {
   const [setores, setSetores] = useState(defaultSetores);
   const [leitos, setLeitos] = useState(defaultLeitos);
@@ -87,6 +111,49 @@ function App() {
   const [filtroDieta, setFiltroDieta] = useState('');
   const [busca, setBusca] = useState('');
   const [configOpen, setConfigOpen] = useState(false);
+  const [erroConexao, setErroConexao] = useState('');
+  const [carregando, setCarregando] = useState(true);
+
+  const carregarDados = async () => {
+    try {
+      setCarregando(true);
+      const [setoresRes, leitosRes, statusRes, acompanhanteRes, dietasRes, viasRes, pacientesRes] = await Promise.all([
+        fetch(`${API_BASE}/setores`),
+        fetch(`${API_BASE}/leitos`),
+        fetch(`${API_BASE}/config/status`),
+        fetch(`${API_BASE}/config/acompanhante`),
+        fetch(`${API_BASE}/config/dietas`),
+        fetch(`${API_BASE}/config/vias`),
+        fetch(`${API_BASE}/pacientes`),
+      ]);
+
+      const setoresApi = await setoresRes.json();
+      const leitosApi = await leitosRes.json();
+      const statusApi = await statusRes.json();
+      const acompanhanteApi = await acompanhanteRes.json();
+      const dietasApi = await dietasRes.json();
+      const viasApi = await viasRes.json();
+      const pacientesApi = await pacientesRes.json();
+
+      setSetores(Array.isArray(setoresApi) && setoresApi.length ? setoresApi.map((item) => item.nome || item) : defaultSetores);
+      setLeitos(Array.isArray(leitosApi) && leitosApi.length ? leitosApi.map((item) => item.nome || item) : defaultLeitos);
+      setStatusOpcoes(Array.isArray(statusApi) && statusApi.length ? statusApi : defaultStatus);
+      setAcompanhanteOpcoes(Array.isArray(acompanhanteApi) && acompanhanteApi.length ? acompanhanteApi : defaultCompanions);
+      setDietas(Array.isArray(dietasApi) && dietasApi.length ? dietasApi : defaultDietas);
+      setVias(Array.isArray(viasApi) && viasApi.length ? viasApi : defaultVias);
+      setRegistros(Array.isArray(pacientesApi) && pacientesApi.length ? pacientesApi.map(normalizePaciente) : seedData);
+      setErroConexao('');
+    } catch (error) {
+      setErroConexao('Não foi possível conectar ao banco local. Verifique se o servidor está em execução em http://localhost:3001.');
+      setRegistros(seedData);
+    } finally {
+      setCarregando(false);
+    }
+  };
+
+  useEffect(() => {
+    carregarDados();
+  }, []);
 
   const listaFiltrada = useMemo(() => {
     const textoBusca = busca.toLowerCase();
@@ -137,7 +204,7 @@ function App() {
     }
   };
 
-  const handleSalvar = () => {
+  const handleSalvar = async () => {
     if (!form.setor) return alert('Selecione o setor.');
     if (!form.leito) return alert('Selecione o leito.');
     if (!form.dieta) return alert('Selecione pelo menos uma dieta.');
@@ -149,40 +216,57 @@ function App() {
       dieta: form.dieta,
     };
 
-    const existente = registros.findIndex((item) => item.leito === payload.leito);
-    const atualizados = [...registros];
-    if (existente >= 0) {
-      atualizados[existente] = { ...payload, id: atualizados[existente].id };
-    } else {
-      atualizados.push({ ...payload, id: Date.now() });
+    try {
+      const endpoint = form.id ? `${API_BASE}/pacientes/${form.id}` : `${API_BASE}/pacientes`;
+      const response = await fetch(endpoint, {
+        method: form.id ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      const dadosResposta = await response.json();
+      if (!response.ok) {
+        throw new Error(dadosResposta.error || 'Erro ao salvar paciente.');
+      }
+
+      setForm({
+        ...initialForm,
+        internacao: novoValorDataHora(),
+        status: statusOpcoes[0],
+        acompanhante: acompanhanteOpcoes[0],
+        via: vias[0],
+      });
+
+      await carregarDados();
+    } catch (error) {
+      alert(error.message);
     }
-
-    setRegistros(atualizados.sort((a, b) => {
-      const setorA = (a.setor || 'Sem setor').localeCompare(b.setor || 'Sem setor', 'pt-BR');
-      if (setorA !== 0) return setorA;
-      return leitos.indexOf(a.leito) - leitos.indexOf(b.leito);
-    }));
-
-    setForm({
-      ...initialForm,
-      internacao: novoValorDataHora(),
-      status: statusOpcoes[0],
-      acompanhante: acompanhanteOpcoes[0],
-      via: vias[0],
-    });
   };
 
-  const handleExcluir = () => {
-    if (!form.leito) return;
+  const handleExcluir = async () => {
+    const paciente = registros.find((item) => item.id === form.id || item.leito === form.leito);
+    if (!paciente?.id) return alert('Selecione um paciente antes de excluir.');
     if (!window.confirm('Excluir os dados deste leito?')) return;
-    setRegistros((prev) => prev.filter((item) => item.leito !== form.leito));
-    setForm({
-      ...initialForm,
-      internacao: novoValorDataHora(),
-      status: statusOpcoes[0],
-      acompanhante: acompanhanteOpcoes[0],
-      via: vias[0],
-    });
+
+    try {
+      const response = await fetch(`${API_BASE}/pacientes/${paciente.id}`, { method: 'DELETE' });
+      const dadosResposta = await response.json();
+      if (!response.ok) {
+        throw new Error(dadosResposta.error || 'Erro ao excluir paciente.');
+      }
+
+      setForm({
+        ...initialForm,
+        internacao: novoValorDataHora(),
+        status: statusOpcoes[0],
+        acompanhante: acompanhanteOpcoes[0],
+        via: vias[0],
+      });
+
+      await carregarDados();
+    } catch (error) {
+      alert(error.message);
+    }
   };
 
   const handleDietaToggle = (valor) => {
@@ -210,7 +294,7 @@ function App() {
     });
   };
 
-  const handleConfigApply = () => {
+  const handleConfigApply = async () => {
     const configSetores = document.getElementById('configSetores')?.value?.split(/\r?\n/).filter(Boolean) || [];
     const configLeitos = document.getElementById('configLeitos')?.value?.split(/\r?\n/).filter(Boolean) || [];
     const configStatus = document.getElementById('configStatus')?.value?.split(/\r?\n/).filter(Boolean) || [];
@@ -223,13 +307,41 @@ function App() {
       return;
     }
 
-    setSetores(configSetores);
-    setLeitos(configLeitos);
-    setStatusOpcoes(configStatus.length ? configStatus : defaultStatus);
-    setAcompanhanteOpcoes(configAcompanhante.length ? configAcompanhante : defaultCompanions);
-    setDietas(configDietas.length ? configDietas : defaultDietas);
-    setVias(configVias.length ? configVias : defaultVias);
-    setConfigOpen(false);
+    try {
+      await Promise.all([
+        fetch(`${API_BASE}/config/status`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(configStatus.length ? configStatus : defaultStatus),
+        }),
+        fetch(`${API_BASE}/config/acompanhante`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(configAcompanhante.length ? configAcompanhante : defaultCompanions),
+        }),
+        fetch(`${API_BASE}/config/dietas`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(configDietas.length ? configDietas : defaultDietas),
+        }),
+        fetch(`${API_BASE}/config/vias`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(configVias.length ? configVias : defaultVias),
+        }),
+      ]);
+
+      setSetores(configSetores);
+      setLeitos(configLeitos);
+      setStatusOpcoes(configStatus.length ? configStatus : defaultStatus);
+      setAcompanhanteOpcoes(configAcompanhante.length ? configAcompanhante : defaultCompanions);
+      setDietas(configDietas.length ? configDietas : defaultDietas);
+      setVias(configVias.length ? configVias : defaultVias);
+      setConfigOpen(false);
+      await carregarDados();
+    } catch (error) {
+      alert('Não foi possível salvar as configurações no banco.');
+    }
   };
 
   const resetarFormulario = () => setForm({ ...initialForm, status: statusOpcoes[0], acompanhante: acompanhanteOpcoes[0], via: vias[0] });
@@ -345,6 +457,8 @@ function App() {
             ))}
           </div>
 
+          {erroConexao && <div className="empty-state">{erroConexao}</div>}
+
           <div className="toolbar-grid">
             <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar por leito, nome, dieta, restrição ou alergia" />
             <select value={filtroSetor} onChange={(e) => setFiltroSetor(e.target.value)}>
@@ -400,7 +514,9 @@ function App() {
           )}
 
           <div className="map-container">
-            {grupos.length === 0 ? (
+            {carregando ? (
+              <div className="empty-state">Carregando dados do banco Dieta...</div>
+            ) : grupos.length === 0 ? (
               <div className="empty-state">Nenhum paciente no mapa.</div>
             ) : (
               grupos.map(({ setor, itens }) => (
