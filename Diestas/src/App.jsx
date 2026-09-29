@@ -145,7 +145,7 @@ function App() {
       setRegistros(Array.isArray(pacientesApi) && pacientesApi.length ? pacientesApi.map(normalizePaciente) : seedData);
       setErroConexao('');
     } catch (error) {
-      setErroConexao('Não foi possível conectar ao banco local. Verifique se o servidor está em execução em http://localhost:3001.');
+      setErroConexao('Não foi possível conectar ao banco de dados. Tente novamente em instantes.');
       setRegistros(seedData);
     } finally {
       setCarregando(false);
