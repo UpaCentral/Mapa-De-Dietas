@@ -1,11 +1,31 @@
 import express from 'express';
 import cors from 'cors';
+import { readFile } from 'node:fs/promises';
+import path from 'node:path';
+import { createSession, getSession, revokeSession, verifyPassword } from './auth.js';
 import { initDatabase, getSettings, setSettings } from './db.js';
 
 const app = express();
 const PORT = 3001;
+const authFile = process.env.DIETA_AUTH_FILE || path.join(process.env.USERPROFILE || process.env.HOME, '.cloudflared', 'dieta-auth.json');
+const loginAttempts = new Map();
+const allowedOrigins = new Set([
+  'https://upadieta.netlify.app',
+  'https://dieta.upacentral.co.uk',
+  'https://www.dieta.upacentral.co.uk',
+]);
 
-app.use(cors());
+app.use(cors({
+  origin(origin, callback) {
+    if (!origin || allowedOrigins.has(origin) || /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
+      callback(null, true);
+      return;
+    }
+    callback(new Error('Origem não autorizada.'));
+  },
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+}));
 app.use(express.json());
 
 let db;
@@ -16,6 +36,56 @@ async function getDb() {
   }
   return db;
 }
+
+app.post('/api/login', async (req, res) => {
+  const now = Date.now();
+  const ip = req.ip;
+  const attempt = loginAttempts.get(ip);
+  if (attempt && attempt.resetAt <= now) loginAttempts.delete(ip);
+  const currentAttempt = loginAttempts.get(ip);
+  if (currentAttempt?.count >= 5) {
+    return res.status(429).json({ error: 'Muitas tentativas. Aguarde 15 minutos e tente novamente.' });
+  }
+
+  try {
+    const credential = JSON.parse(await readFile(authFile, 'utf8'));
+    const usernameMatches = req.body?.username === credential.username;
+    const passwordMatches = await verifyPassword(req.body?.password, credential);
+    if (!usernameMatches || !passwordMatches) {
+      loginAttempts.set(ip, {
+        count: (currentAttempt?.count || 0) + 1,
+        resetAt: currentAttempt?.resetAt || now + 15 * 60 * 1000,
+      });
+      return res.status(401).json({ error: 'Usuário ou senha incorretos.' });
+    }
+
+    loginAttempts.delete(ip);
+    res.json({ token: createSession(credential.username), username: credential.username });
+  } catch (error) {
+    console.error('Falha ao ler configuração de autenticação:', error.message);
+    res.status(503).json({ error: 'Login indisponível: credencial local não configurada.' });
+  }
+});
+
+app.use('/api', (req, res, next) => {
+  if (req.path === '/health' || req.path === '/login') return next();
+  const authorization = req.get('authorization') || '';
+  const token = authorization.startsWith('Bearer ') ? authorization.slice(7) : '';
+  const session = getSession(token);
+  if (!session) return res.status(401).json({ error: 'Sessão inválida ou expirada.' });
+  req.authToken = token;
+  req.authUser = session.username;
+  next();
+});
+
+app.post('/api/logout', (req, res) => {
+  revokeSession(req.authToken);
+  res.json({ ok: true });
+});
+
+app.get('/api/session', (req, res) => {
+  res.json({ ok: true, username: req.authUser });
+});
 
 app.get('/api/health', async (_req, res) => {
   try {
@@ -176,6 +246,6 @@ app.delete('/api/pacientes/:id', async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, '127.0.0.1', () => {
   console.log(`Servidor Dieta rodando em http://localhost:${PORT}`);
 });

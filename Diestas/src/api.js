@@ -6,9 +6,5 @@ export function resolveApiBase(location = window.location) {
     return 'http://localhost:3001/api';
   }
 
-  const apiHost = hostname === 'api.dieta.upacentral.co.uk'
-    ? 'api.dieta.upacentral.co.uk'
-    : 'api.dieta.upacentral.co.uk';
-
-  return `${protocol}//${apiHost}/api`;
+  return `${protocol}//api-dieta.upacentral.co.uk/api`;
 }

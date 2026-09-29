@@ -27,11 +27,91 @@ button, input, select, textarea {
 }
 
 .topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   background: var(--orange);
   color: #fff;
   padding: 12px 18px;
   font-size: 21px;
   font-weight: 700;
+}
+
+.logout-button {
+  padding: 7px 13px;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  background: transparent;
+}
+
+.login-page {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: 24px;
+  background-color: #173d37;
+  background-image: linear-gradient(135deg, rgba(13, 49, 45, 0.96), rgba(28, 89, 72, 0.88)), repeating-linear-gradient(135deg, transparent 0 32px, rgba(255, 255, 255, 0.035) 32px 34px);
+}
+
+.login-panel {
+  width: min(100%, 420px);
+  padding: 34px;
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 24px 70px rgba(5, 26, 23, 0.32);
+}
+
+.login-mark {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  border-radius: 6px;
+  background: #e9f3ee;
+  color: #17634a;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.login-kicker {
+  margin: 22px 0 6px;
+  color: #17634a;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.login-panel h1 {
+  margin: 0;
+  color: #152f2a;
+  font-size: 27px;
+}
+
+.login-subtitle {
+  margin: 8px 0 24px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.login-panel form button {
+  width: 100%;
+  margin-top: 20px;
+  background: #17634a;
+}
+
+.login-panel form button:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.login-error {
+  margin: 12px 0 0;
+  color: #b42318;
+  font-size: 13px;
+}
+
+.login-status {
+  color: #fff;
+  font-size: 15px;
 }
 
 .app-shell {

@@ -6,9 +6,9 @@ import { fileURLToPath } from 'node:url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dbPath = path.join(__dirname, '..', 'data', 'Dieta.db');
 
-export async function initDatabase() {
+export async function initDatabase(filename = dbPath) {
   const db = await open({
-    filename: dbPath,
+    filename,
     driver: sqlite3.Database,
   });
 
