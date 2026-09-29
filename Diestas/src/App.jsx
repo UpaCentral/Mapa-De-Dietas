@@ -160,8 +160,13 @@ function App() {
       setRegistros(Array.isArray(pacientesApi) ? pacientesApi.map(normalizePaciente) : []);
       setErroConexao('');
     } catch (error) {
+<<<<<<< HEAD
       setErroConexao('Não foi possível carregar os dados protegidos. Verifique se a API e o tunnel estão conectados.');
       setRegistros([]);
+=======
+      setErroConexao('Não foi possível conectar ao banco de dados. Tente novamente em instantes.');
+      setRegistros(seedData);
+>>>>>>> c4436382fb0bf7e481fe9281b57211bdcce36ebd
     } finally {
       setCarregando(false);
     }

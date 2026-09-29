@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 export function resolveApiBase(location = window.location) {
   const hostname = location?.hostname || 'localhost';
   const protocol = location?.protocol || 'http:';
@@ -7,4 +8,8 @@ export function resolveApiBase(location = window.location) {
   }
 
   return `${protocol}//api-dieta.upacentral.co.uk/api`;
+=======
+export function resolveApiBase() {
+  return '/api';
+>>>>>>> c4436382fb0bf7e481fe9281b57211bdcce36ebd
 }

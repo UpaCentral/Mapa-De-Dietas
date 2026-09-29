@@ -5,23 +5,19 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
-    "server": "node server/index.js",
-    "dev:all": "concurrently \"npm run server\" \"npm run dev\"",
     "build": "vite build",
-    "preview": "vite preview --host 0.0.0.0",
-    "test": "node --test"
+    "preview": "vite preview --host 0.0.0.0"
   },
   "dependencies": {
-    "concurrently": "^9.1.0",
-    "cors": "^2.8.5",
-    "express": "^4.21.2",
+    "@netlify/database": "^2.0.1",
+    "@netlify/functions": "^6.0.0",
+    "drizzle-orm": "^1.0.0-beta.22",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "sqlite": "^5.1.1",
-    "sqlite3": "^5.1.0"
+    "react-dom": "^18.3.1"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.1",
+    "drizzle-kit": "^1.0.0-beta.22",
     "vite": "^5.4.10"
   }
 }
