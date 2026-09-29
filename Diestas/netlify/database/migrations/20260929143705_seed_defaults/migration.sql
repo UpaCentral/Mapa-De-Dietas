@@ -1,4 +1,5 @@
--- Custom SQL migration file, put your code below! --INSERT INTO setores (nome) VALUES
+-- Custom SQL migration file, put your code below! --
+INSERT INTO setores (nome) VALUES
   ('Sala vermelha'),
   ('Sala de Sutura'),
   ('Sala do respiratorio'),
