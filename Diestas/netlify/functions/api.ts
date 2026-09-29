@@ -1,9 +1,25 @@
 import type { Config } from "@netlify/functions";
-import { asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, gt, lte } from "drizzle-orm";
 import { db } from "../../db/index.js";
-import { configuracoes, leitos, pacientes, setores } from "../../db/schema.js";
+import { configuracoes, leitos, pacientes, sessoes, setores } from "../../db/schema.js";
+import { createSessionToken, hashSessionToken, verifyPassword } from "./auth.js";
 
 type PacienteBody = Record<string, string | undefined>;
+const sessionTtlMs = 8 * 60 * 60 * 1000;
+
+async function getSession(req: Request) {
+  const authorization = req.headers.get("authorization") || "";
+  const token = authorization.startsWith("Bearer ") ? authorization.slice(7) : "";
+  if (!token) return null;
+
+  const tokenHash = hashSessionToken(token);
+  const [session] = await db
+    .select({ tokenHash: sessoes.tokenHash, username: sessoes.username })
+    .from(sessoes)
+    .where(and(eq(sessoes.tokenHash, tokenHash), gt(sessoes.expiresAt, new Date())))
+    .limit(1);
+  return session || null;
+}
 
 async function dadosPaciente(body: PacienteBody) {
   const [setor] = body.setor
@@ -77,6 +93,45 @@ async function handle(req: Request): Promise<Response> {
 
   if (recurso === "health") {
     await db.select({ id: setores.id }).from(setores).limit(1);
+    return Response.json({ ok: true });
+  }
+
+  if (recurso === "login" && method === "POST") {
+    const username = process.env.DIETA_USERNAME;
+    const salt = process.env.DIETA_PASSWORD_SALT;
+    const passwordHash = process.env.DIETA_PASSWORD_HASH;
+    if (!username || !salt || !passwordHash) {
+      return Response.json({ error: "Credenciais de acesso não configuradas." }, { status: 503 });
+    }
+
+    const body = await req.json().catch(() => null) as { username?: unknown; password?: unknown } | null;
+    const passwordMatches = await verifyPassword(body?.password, { salt, passwordHash });
+    if (body?.username !== username || !passwordMatches) {
+      return Response.json({ error: "Usuário ou senha incorretos." }, { status: 401 });
+    }
+
+    const token = createSessionToken();
+    const expiresAt = new Date(Date.now() + sessionTtlMs);
+    await db.delete(sessoes).where(lte(sessoes.expiresAt, new Date()));
+    await db.insert(sessoes).values({
+      tokenHash: hashSessionToken(token),
+      username,
+      expiresAt,
+    });
+    return Response.json({ token, username });
+  }
+
+  const session = await getSession(req);
+  if (!session) {
+    return Response.json({ error: "Sessão inválida ou expirada." }, { status: 401 });
+  }
+
+  if (recurso === "session" && method === "GET") {
+    return Response.json({ ok: true, username: session.username });
+  }
+
+  if (recurso === "logout" && method === "POST") {
+    await db.delete(sessoes).where(eq(sessoes.tokenHash, session.tokenHash));
     return Response.json({ ok: true });
   }
 

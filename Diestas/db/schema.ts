@@ -46,3 +46,10 @@ export const pacientes = pgTable("pacientes", {
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
+
+export const sessoes = pgTable("sessoes", {
+  id: serial().primaryKey(),
+  tokenHash: text("token_hash").notNull().unique(),
+  username: text().notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+});

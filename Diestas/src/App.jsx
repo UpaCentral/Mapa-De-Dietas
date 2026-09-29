@@ -36,47 +36,6 @@ const initialForm = {
   obs: '',
 };
 
-const seedData = [
-  {
-    id: 1,
-    internacao: '2026-09-21T08:15',
-    setor: 'Sala vermelha',
-    leito: 'Sala vermelha - Observacao 1',
-    status: 'Almoço',
-    prontuario: '12458',
-    nome: 'Maria Silva',
-    nascimento: '1988-03-13',
-    idade: '38 anos',
-    mae: 'Ana Silva',
-    acompanhante: 'Sim',
-    via: 'Oral',
-    justAcompanhante: 'Acompanhante responsável',
-    dieta: 'Branda + Zero Lactose',
-    restricao: 'Sem sal',
-    alergias: 'Nenhuma',
-    obs: 'Paciente em observação',
-  },
-  {
-    id: 2,
-    internacao: '2026-09-22T12:45',
-    setor: 'Sala Pediatria',
-    leito: 'Sala Pediatria - Berco 2',
-    status: 'Jantar',
-    prontuario: '22441',
-    nome: 'João Pereira',
-    nascimento: '2024-01-08',
-    idade: '2 anos',
-    mae: 'Carla Pereira',
-    acompanhante: 'Nao',
-    via: 'Oral',
-    justAcompanhante: '',
-    dieta: 'Mamadeira',
-    restricao: 'Sem açúcar',
-    alergias: 'Leite',
-    obs: 'Criança em acompanhamento',
-  },
-];
-
 function normalizePaciente(row = {}) {
   return {
     id: row.id ?? null,
@@ -99,6 +58,45 @@ function normalizePaciente(row = {}) {
   };
 }
 
+function TelaLogin({ onLogin }) {
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    setError('');
+    setSubmitting(true);
+    try {
+      await onLogin(username, password);
+    } catch (loginError) {
+      setError(loginError.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <main className="login-page">
+      <section className="login-panel">
+        <div className="login-mark" aria-hidden="true">UD</div>
+        <p className="login-kicker">UPA CENTRAL</p>
+        <h1>Mapa de Dietas</h1>
+        <p className="login-subtitle">Acesso restrito à equipe autorizada</p>
+        <form onSubmit={handleSubmit}>
+          <label htmlFor="login-username">Usuário</label>
+          <input id="login-username" autoComplete="username" value={username} onChange={(event) => setUsername(event.target.value)} required />
+          <label htmlFor="login-password">Senha</label>
+          <input id="login-password" type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} required />
+          {error && <p className="login-error" role="alert">{error}</p>}
+          <button type="submit" disabled={submitting}>{submitting ? 'Entrando...' : 'Entrar'}</button>
+        </form>
+      </section>
+    </main>
+  );
+}
+
 function App() {
   const [setores, setSetores] = useState(defaultSetores);
   const [leitos, setLeitos] = useState(defaultLeitos);
@@ -107,26 +105,43 @@ function App() {
   const [vias, setVias] = useState(defaultVias);
   const [dietas, setDietas] = useState(defaultDietas);
   const [form, setForm] = useState(initialForm);
-  const [registros, setRegistros] = useState(seedData);
+  const [registros, setRegistros] = useState([]);
   const [filtroSetor, setFiltroSetor] = useState('');
   const [filtroDieta, setFiltroDieta] = useState('');
   const [busca, setBusca] = useState('');
   const [configOpen, setConfigOpen] = useState(false);
   const [erroConexao, setErroConexao] = useState('');
   const [carregando, setCarregando] = useState(true);
+  const [authToken, setAuthToken] = useState(() => sessionStorage.getItem('dieta-session') || '');
+  const [authLoading, setAuthLoading] = useState(true);
 
-  const carregarDados = async () => {
+  const authenticatedFetch = (url, options = {}, token = authToken) => fetch(url, {
+    ...options,
+    headers: { ...options.headers, Authorization: `Bearer ${token}` },
+  });
+
+  const carregarDados = async (token = authToken) => {
     try {
       setCarregando(true);
       const [setoresRes, leitosRes, statusRes, acompanhanteRes, dietasRes, viasRes, pacientesRes] = await Promise.all([
-        fetch(`${API_BASE}/setores`),
-        fetch(`${API_BASE}/leitos`),
-        fetch(`${API_BASE}/config/status`),
-        fetch(`${API_BASE}/config/acompanhante`),
-        fetch(`${API_BASE}/config/dietas`),
-        fetch(`${API_BASE}/config/vias`),
-        fetch(`${API_BASE}/pacientes`),
+        authenticatedFetch(`${API_BASE}/setores`, {}, token),
+        authenticatedFetch(`${API_BASE}/leitos`, {}, token),
+        authenticatedFetch(`${API_BASE}/config/status`, {}, token),
+        authenticatedFetch(`${API_BASE}/config/acompanhante`, {}, token),
+        authenticatedFetch(`${API_BASE}/config/dietas`, {}, token),
+        authenticatedFetch(`${API_BASE}/config/vias`, {}, token),
+        authenticatedFetch(`${API_BASE}/pacientes`, {}, token),
       ]);
+
+      if ([setoresRes, leitosRes, statusRes, acompanhanteRes, dietasRes, viasRes, pacientesRes].some((response) => response.status === 401)) {
+        sessionStorage.removeItem('dieta-session');
+        setAuthToken('');
+        setRegistros([]);
+        return;
+      }
+      if ([setoresRes, leitosRes, statusRes, acompanhanteRes, dietasRes, viasRes, pacientesRes].some((response) => !response.ok)) {
+        throw new Error('O servidor recusou a consulta dos dados.');
+      }
 
       const setoresApi = await setoresRes.json();
       const leitosApi = await leitosRes.json();
@@ -142,19 +157,69 @@ function App() {
       setAcompanhanteOpcoes(Array.isArray(acompanhanteApi) && acompanhanteApi.length ? acompanhanteApi : defaultCompanions);
       setDietas(Array.isArray(dietasApi) && dietasApi.length ? dietasApi : defaultDietas);
       setVias(Array.isArray(viasApi) && viasApi.length ? viasApi : defaultVias);
-      setRegistros(Array.isArray(pacientesApi) && pacientesApi.length ? pacientesApi.map(normalizePaciente) : seedData);
+      setRegistros(Array.isArray(pacientesApi) ? pacientesApi.map(normalizePaciente) : []);
       setErroConexao('');
     } catch (error) {
-      setErroConexao('Não foi possível conectar ao banco de dados. Tente novamente em instantes.');
-      setRegistros(seedData);
+      setErroConexao('Não foi possível carregar os dados. Verifique a conexão com a API e o banco de dados.');
+      setRegistros([]);
     } finally {
       setCarregando(false);
     }
   };
 
   useEffect(() => {
-    carregarDados();
-  }, []);
+    if (!authToken) {
+      setAuthLoading(false);
+      setCarregando(false);
+      return;
+    }
+
+    let ativo = true;
+    authenticatedFetch(`${API_BASE}/session`, {}, authToken)
+      .then(async (response) => {
+        if (!response.ok) throw new Error('Sessão expirada.');
+        if (ativo) await carregarDados(authToken);
+      })
+      .catch(() => {
+        sessionStorage.removeItem('dieta-session');
+        if (ativo) {
+          setAuthToken('');
+          setRegistros([]);
+        }
+      })
+      .finally(() => {
+        if (ativo) setAuthLoading(false);
+      });
+
+    return () => { ativo = false; };
+  }, [authToken]);
+
+  const handleLogin = async (username, password) => {
+    const response = await fetch(`${API_BASE}/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password }),
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'Não foi possível entrar.');
+    sessionStorage.setItem('dieta-session', result.token);
+    setAuthToken(result.token);
+    setAuthLoading(true);
+  };
+
+  const handleLogout = async () => {
+    try {
+      await authenticatedFetch(`${API_BASE}/logout`, { method: 'POST' });
+    } finally {
+      sessionStorage.removeItem('dieta-session');
+      setAuthToken('');
+      setRegistros([]);
+      setAuthLoading(false);
+    }
+  };
+
+  if (authLoading) return <main className="login-page"><p className="login-status">Verificando acesso...</p></main>;
+  if (!authToken) return <TelaLogin onLogin={handleLogin} />;
 
   const listaFiltrada = useMemo(() => {
     const textoBusca = busca.toLowerCase();
@@ -219,7 +284,7 @@ function App() {
 
     try {
       const endpoint = form.id ? `${API_BASE}/pacientes/${form.id}` : `${API_BASE}/pacientes`;
-      const response = await fetch(endpoint, {
+      const response = await authenticatedFetch(endpoint, {
         method: form.id ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -250,7 +315,7 @@ function App() {
     if (!window.confirm('Excluir os dados deste leito?')) return;
 
     try {
-      const response = await fetch(`${API_BASE}/pacientes/${paciente.id}`, { method: 'DELETE' });
+      const response = await authenticatedFetch(`${API_BASE}/pacientes/${paciente.id}`, { method: 'DELETE' });
       const dadosResposta = await response.json();
       if (!response.ok) {
         throw new Error(dadosResposta.error || 'Erro ao excluir paciente.');
@@ -310,22 +375,22 @@ function App() {
 
     try {
       await Promise.all([
-        fetch(`${API_BASE}/config/status`, {
+        authenticatedFetch(`${API_BASE}/config/status`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(configStatus.length ? configStatus : defaultStatus),
         }),
-        fetch(`${API_BASE}/config/acompanhante`, {
+        authenticatedFetch(`${API_BASE}/config/acompanhante`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(configAcompanhante.length ? configAcompanhante : defaultCompanions),
         }),
-        fetch(`${API_BASE}/config/dietas`, {
+        authenticatedFetch(`${API_BASE}/config/dietas`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(configDietas.length ? configDietas : defaultDietas),
         }),
-        fetch(`${API_BASE}/config/vias`, {
+        authenticatedFetch(`${API_BASE}/config/vias`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(configVias.length ? configVias : defaultVias),
@@ -349,7 +414,10 @@ function App() {
 
   return (
     <>
-      <div className="topbar">Dashboard - Mapa de Dietas</div>
+      <div className="topbar">
+        <span>Dashboard - Mapa de Dietas</span>
+        <button className="logout-button" onClick={handleLogout}>Sair</button>
+      </div>
       <main className="app-shell">
         <section className="panel form-panel">
           <h2>Paciente</h2>

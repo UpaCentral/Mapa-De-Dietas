@@ -1,0 +1,6 @@
+/Diestas/node_modules/
+/Diestas/dist/
+/Diestas/data/Dieta.db
+**/.env
+**/.env.*
+!**/.env.example
