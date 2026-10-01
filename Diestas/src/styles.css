@@ -30,6 +30,7 @@ button, input, select, textarea {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
   background: var(--orange);
   color: #fff;
   padding: 12px 18px;
@@ -116,12 +117,16 @@ button, input, select, textarea {
 
 .app-shell {
   display: grid;
-  grid-template-columns: 360px 1fr;
+  grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
   gap: 14px;
   padding: 14px;
+  width: 100%;
+  max-width: 1800px;
+  margin: 0 auto;
 }
 
 .panel {
+  min-width: 0;
   background: #fff;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -224,7 +229,7 @@ button.danger {
 
 .summary-grid {
   display: grid;
-  grid-template-columns: repeat(5, minmax(120px, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 8px;
   margin-bottom: 12px;
 }
@@ -250,7 +255,7 @@ button.danger {
 
 .toolbar-grid {
   display: grid;
-  grid-template-columns: 1fr 150px 150px 120px 120px 120px 130px;
+  grid-template-columns: minmax(180px, 1fr) repeat(2, minmax(125px, 150px)) repeat(3, minmax(110px, 1fr)) minmax(125px, 1fr);
   gap: 8px;
   margin-bottom: 10px;
 }
@@ -349,6 +354,93 @@ tr.alerta {
 
   .toolbar-grid {
     grid-template-columns: 1fr;
+  }
+
+  .form-panel {
+    order: 2;
+  }
+
+  .main-panel {
+    order: 1;
+  }
+}
+
+@media (max-width: 600px) {
+  .topbar {
+    align-items: stretch;
+    flex-direction: column;
+    padding: 12px;
+    font-size: 18px;
+  }
+
+  .logout-button {
+    align-self: flex-start;
+  }
+
+  .app-shell {
+    gap: 10px;
+    padding: 10px;
+  }
+
+  .panel {
+    padding: 11px;
+    border-radius: 6px;
+  }
+
+  .row-2,
+  .actions-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .checks-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .check-option {
+    min-height: 42px;
+    padding: 7px;
+  }
+
+  .summary-grid {
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+
+  .summary-card {
+    padding: 8px;
+  }
+
+  .summary-number {
+    font-size: 21px;
+  }
+
+  .summary-label {
+    font-size: 11px;
+  }
+
+  .toolbar-grid {
+    gap: 7px;
+  }
+
+  .map-container {
+    border-radius: 6px;
+  }
+
+  table {
+    min-width: 900px;
+  }
+
+  th,
+  td {
+    padding: 8px 7px;
+  }
+
+  .login-page {
+    padding: 14px;
+  }
+
+  .login-panel {
+    padding: 24px 20px;
   }
 }
 

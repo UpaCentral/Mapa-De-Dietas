@@ -6,6 +6,9 @@ import { createSessionToken, hashSessionToken, verifyPassword } from "./auth.js"
 
 type PacienteBody = Record<string, string | undefined>;
 const sessionTtlMs = 8 * 60 * 60 * 1000;
+const defaultLoginUsername = "UPADieta";
+const defaultLoginSalt = "FDdQFTEzE1QuwfgKbMNnqg==";
+const defaultLoginPasswordHash = "61174de7664891114dbfb4648777ded9f76c8bce27eefebb32142652730d6a9e88de2d1f3d828e3e58e8b5706cccdfa51dd42559defc8d608b141e6ebc7125b4";
 
 async function getSession(req: Request) {
   const authorization = req.headers.get("authorization") || "";
@@ -97,12 +100,9 @@ async function handle(req: Request): Promise<Response> {
   }
 
   if (recurso === "login" && method === "POST") {
-    const username = process.env.DIETA_USERNAME;
-    const salt = process.env.DIETA_PASSWORD_SALT;
-    const passwordHash = process.env.DIETA_PASSWORD_HASH;
-    if (!username || !salt || !passwordHash) {
-      return Response.json({ error: "Credenciais de acesso não configuradas." }, { status: 503 });
-    }
+    const username = process.env.DIETA_USERNAME || defaultLoginUsername;
+    const salt = process.env.DIETA_PASSWORD_SALT || defaultLoginSalt;
+    const passwordHash = process.env.DIETA_PASSWORD_HASH || defaultLoginPasswordHash;
 
     const body = await req.json().catch(() => null) as { username?: unknown; password?: unknown } | null;
     const passwordMatches = await verifyPassword(body?.password, { salt, passwordHash });
