@@ -106,8 +106,11 @@ async function handle(req: Request): Promise<Response> {
     const passwordHash = process.env.DIETA_PASSWORD_HASH || defaultLoginPasswordHash;
 
     const body = await req.json().catch(() => null) as { username?: unknown; password?: unknown } | null;
-    const passwordMatches = await verifyPassword(body?.password, { salt, passwordHash });
-    if (body?.username !== username || !passwordMatches) {
+    const normalizedUsername = typeof body?.username === "string" ? body.username.trim() : "";
+    const normalizedExpectedUsername = String(username).trim();
+    const passwordMatches = await verifyPassword(typeof body?.password === "string" ? body.password : "", { salt, passwordHash });
+    const usernameMatches = normalizedUsername.toLowerCase() === normalizedExpectedUsername.toLowerCase();
+    if (!usernameMatches || !passwordMatches) {
       return Response.json({ error: "Usuário ou senha incorretos." }, { status: 401 });
     }
 

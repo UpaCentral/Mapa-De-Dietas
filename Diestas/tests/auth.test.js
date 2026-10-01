@@ -23,3 +23,14 @@ test("password verification accepts only the matching scrypt credential", async 
   assert.equal(await verifyPassword("wrong password", credential), false);
   assert.equal(await verifyPassword(undefined, credential), false);
 });
+
+test("accepts the default user credentials used in production with whitespace-safe input", async () => {
+  const credential = {
+    salt: "FDdQFTEzE1QuwfgKbMNnqg==",
+    passwordHash: "61174de7664891114dbfb4648777ded9f76c8bce27eefebb32142652730d6a9e88de2d1f3d828e3e58e8b5706cccdfa51dd42559defc8d608b141e6ebc7125b4",
+  };
+
+  assert.equal(await verifyPassword("Upa@2026", credential), true);
+  assert.equal(await verifyPassword(" Upa@2026 ", credential), true);
+  assert.equal(await verifyPassword("Upa@2027", credential), false);
+});

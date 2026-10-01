@@ -21,7 +21,8 @@ export async function verifyPassword(password, credential) {
     return false;
   }
 
+  const normalizedPassword = password.trim();
   const expected = Buffer.from(credential.passwordHash, "hex");
-  const actual = await scrypt(password, credential.salt, expected.length);
+  const actual = await scrypt(normalizedPassword, credential.salt, expected.length);
   return expected.length === actual.length && timingSafeEqual(expected, actual);
 }
