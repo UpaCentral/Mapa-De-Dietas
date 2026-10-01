@@ -14,7 +14,7 @@ import {
 } from './data';
 import { resolveApiBase } from './api';
 
-const API_BASE = resolveApiBase(window.location);
+const API_BASE = resolveApiBase();
 
 const initialForm = {
   id: null,

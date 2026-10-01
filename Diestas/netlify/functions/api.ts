@@ -3,6 +3,7 @@ import { and, asc, desc, eq, gt, lte } from "drizzle-orm";
 import { db } from "../../db/index.js";
 import { configuracoes, leitos, pacientes, sessoes, setores } from "../../db/schema.js";
 import { createSessionToken, hashSessionToken, verifyPassword } from "./auth.js";
+import { corsHeaders } from "./cors.js";
 
 type PacienteBody = Record<string, string | undefined>;
 const sessionTtlMs = 8 * 60 * 60 * 1000;
@@ -188,10 +189,41 @@ async function handle(req: Request): Promise<Response> {
 }
 
 export default async (req: Request) => {
+  const origin = req.headers.get("origin");
+  const headers = corsHeaders(origin);
+  if (origin && !headers) {
+    return Response.json({ error: "Origem não autorizada." }, { status: 403 });
+  }
+
+  if (req.method === "OPTIONS") {
+    return new Response(null, { status: 204, headers: headers || undefined });
+  }
+
   try {
-    return await handle(req);
+    const response = await handle(req);
+    if (!headers) return response;
+
+    const responseHeaders = new Headers(response.headers);
+    for (const [name, value] of Object.entries(headers)) responseHeaders.set(name, value);
+    const vary = responseHeaders.get("Vary");
+    responseHeaders.set("Vary", vary ? `${vary}, Origin` : "Origin");
+    return new Response(response.body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: responseHeaders,
+    });
   } catch (error) {
-    return Response.json({ error: (error as Error).message }, { status: 500 });
+    const response = Response.json({ error: (error as Error).message }, { status: 500 });
+    if (!headers) return response;
+
+    const responseHeaders = new Headers(response.headers);
+    for (const [name, value] of Object.entries(headers)) responseHeaders.set(name, value);
+    responseHeaders.set("Vary", "Origin");
+    return new Response(response.body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: responseHeaders,
+    });
   }
 };
 
