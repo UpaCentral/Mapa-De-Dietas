@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { scryptSync } from "node:crypto";
 
-import { createSessionToken, hashSessionToken, verifyPassword } from "./auth.js";
+import { createSessionToken, hashSessionToken, verifyPassword } from "../netlify/functions/auth.js";
 
 test("session tokens are random and stored as one-way hashes", () => {
   const firstToken = createSessionToken();
