@@ -225,9 +225,6 @@ function App() {
     }
   };
 
-  if (authLoading) return <main className="login-page"><p className="login-status">Verificando acesso...</p></main>;
-  if (!authToken) return <TelaLogin onLogin={handleLogin} />;
-
   const listaFiltrada = useMemo(() => {
     const textoBusca = busca.toLowerCase();
     return registros.filter((item) => {
@@ -418,6 +415,9 @@ function App() {
   };
 
   const resetarFormulario = () => setForm({ ...initialForm, status: statusOpcoes[0], acompanhante: acompanhanteOpcoes[0], via: vias[0] });
+
+  if (authLoading) return <main className="login-page"><p className="login-status">Verificando acesso...</p></main>;
+  if (!authToken) return <TelaLogin onLogin={handleLogin} />;
 
   return (
     <>

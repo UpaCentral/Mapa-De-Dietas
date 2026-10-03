@@ -1,6 +1,14 @@
 import { and, asc, desc, eq, gt, lte } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/d1';
 import { configuracoes, leitos, pacientes, sessoes, setores } from '../db/schema.ts';
+import {
+  defaultCompanions,
+  defaultDietas,
+  defaultLeitos,
+  defaultSetores,
+  defaultStatus,
+  defaultVias,
+} from '../src/data.js';
 import { createSessionToken, hashSessionToken, verifyPassword } from './auth.js';
 
 const sessionTtlMs = 8 * 60 * 60 * 1000;
@@ -8,8 +16,123 @@ const defaultLoginUsername = 'UPADieta';
 const defaultLoginSalt = 'FDdQFTEzE1QuwfgKbMNnqg==';
 const defaultLoginPasswordHash = '0fe7c25dc2ff0d6ea7ee3d08783cbe76eb110da31bc894f63e6e5ba789597934';
 
+const fallbackState = {
+  sessions: new Map(),
+  config: {
+    setores: [...defaultSetores],
+    leitos: [...defaultLeitos],
+    status: [...defaultStatus],
+    acompanhante: [...defaultCompanions],
+    dietas: [...defaultDietas],
+    vias: [...defaultVias],
+  },
+  pacientes: [],
+};
+
 function json(body, status = 200) {
   return Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
+}
+
+async function getFallbackSession(request) {
+  const authorization = request.headers.get('authorization') || '';
+  const token = authorization.startsWith('Bearer ') ? authorization.slice(7) : '';
+  if (!token) return null;
+
+  const tokenHash = await hashSessionToken(token);
+  const session = fallbackState.sessions.get(tokenHash);
+  if (!session) return null;
+
+  if (new Date(session.expiresAt).getTime() <= Date.now()) {
+    fallbackState.sessions.delete(tokenHash);
+    return null;
+  }
+
+  return { tokenHash, username: session.username };
+}
+
+async function handleFallbackRequest(request, env) {
+  const [recurso, id] = new URL(request.url).pathname
+    .replace(/^\/api\/?/, '')
+    .split('/')
+    .filter(Boolean)
+    .map(decodeURIComponent);
+  const method = request.method;
+
+  if (recurso === 'health' && method === 'GET') {
+    return json({ ok: true });
+  }
+
+  if (recurso === 'login' && method === 'POST') {
+    const username = env.DIETA_USERNAME || defaultLoginUsername;
+    const salt = env.DIETA_PASSWORD_SALT || defaultLoginSalt;
+    const passwordHash = env.DIETA_PASSWORD_HASH || defaultLoginPasswordHash;
+    const body = await request.json().catch(() => null);
+    const normalizedUsername = typeof body?.username === 'string' ? body.username.trim() : '';
+    const passwordMatches = await verifyPassword(typeof body?.password === 'string' ? body.password : '', { salt, passwordHash });
+    if (normalizedUsername.toLowerCase() !== String(username).trim().toLowerCase() || !passwordMatches) {
+      return json({ error: 'Usuário ou senha incorretos.' }, 401);
+    }
+
+    const token = createSessionToken();
+    const expiresAt = new Date(Date.now() + sessionTtlMs).toISOString();
+    const tokenHash = await hashSessionToken(token);
+    fallbackState.sessions.set(tokenHash, { username, expiresAt });
+    return json({ token, username });
+  }
+
+  const session = await getFallbackSession(request);
+  if (!session) return json({ error: 'Sessão inválida ou expirada.' }, 401);
+
+  if (recurso === 'session' && method === 'GET') {
+    return json({ ok: true, username: session.username });
+  }
+
+  if (recurso === 'logout' && method === 'POST') {
+    fallbackState.sessions.delete(session.tokenHash);
+    return json({ ok: true });
+  }
+
+  if (recurso === 'setores' && method === 'GET') {
+    return json(fallbackState.config.setores);
+  }
+
+  if (recurso === 'leitos' && method === 'GET') {
+    return json(fallbackState.config.leitos.map((nome) => ({ id: Math.random(), setor_id: null, nome })));
+  }
+
+  if (recurso === 'config' && id) {
+    if (method === 'GET') {
+      return json(fallbackState.config[id] || []);
+    }
+    if (method === 'POST') {
+      const body = await request.json().catch(() => null);
+      const values = [...new Set((Array.isArray(body) ? body : []).filter(Boolean).map(String))];
+      fallbackState.config[id] = values;
+      return json({ ok: true, values });
+    }
+  }
+
+  if (recurso === 'pacientes') {
+    if (method === 'GET' && !id) return json(fallbackState.pacientes);
+    if (method === 'POST' && !id) {
+      const body = await request.json().catch(() => ({}));
+      const paciente = { id: Date.now(), ...body };
+      fallbackState.pacientes.unshift(paciente);
+      return json({ ok: true, id: paciente.id }, 201);
+    }
+    if (id && method === 'PUT') {
+      const body = await request.json().catch(() => ({}));
+      const index = fallbackState.pacientes.findIndex((item) => item.id === Number(id));
+      if (index >= 0) fallbackState.pacientes[index] = { ...fallbackState.pacientes[index], ...body };
+      return json({ ok: true });
+    }
+    if (id && method === 'DELETE') {
+      fallbackState.pacientes = fallbackState.pacientes.filter((item) => item.id !== Number(id));
+      return json({ ok: true });
+    }
+  }
+
+  return json({ error: 'Rota não encontrada.' }, 404);
 }
 
 async function getSession(request, db) {
@@ -183,6 +306,10 @@ async function handle(request, env, db) {
 
 export async function handleApiRequest(request, env) {
   if (request.method === 'OPTIONS') return new Response(null, { status: 204 });
+
+  if (!env?.DB) {
+    return handleFallbackRequest(request, env || {});
+  }
 
   try {
     const db = drizzle(env.DB);

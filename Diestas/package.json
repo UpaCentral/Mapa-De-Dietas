@@ -4,18 +4,16 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "npm run build && wrangler dev --local",
-    "dev:vite": "vite --host 0.0.0.0",
-    "build": "node --max-old-space-size=8192 ./node_modules/vite/bin/vite.js build",
-    "build:cloudflare": "npm run build",
-    "deploy:cloudflare": "npm run build && wrangler deploy",
-    "d1:create": "wrangler d1 create mapa-de-dietas-db",
-    "d1:migrate:local": "wrangler d1 migrations apply mapa-de-dietas-db --local",
-    "d1:migrate:remote": "wrangler d1 migrations apply mapa-de-dietas-db --remote",
+    "dev": "vite --host 0.0.0.0",
+    "build": "vite build",
+    "build:cloudflare": "vite build --mode cloudflare",
+    "deploy:cloudflare": "npm run build:cloudflare && wrangler deploy",
     "preview": "vite preview --host 0.0.0.0",
-    "test": "node --test tests/auth.test.js tests/api.test.js src/api.test.js"
+    "test": "node --test tests/auth.test.js tests/cors.test.js src/api.test.js"
   },
   "dependencies": {
+    "@netlify/database": "^2.0.1",
+    "@netlify/functions": "^6.0.0",
     "drizzle-orm": "^1.0.0-beta.22",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
