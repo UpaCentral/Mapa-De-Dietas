@@ -9,12 +9,14 @@
     "build:cloudflare": "vite build --mode cloudflare",
     "deploy:cloudflare": "npm run build:cloudflare && wrangler deploy",
     "preview": "vite preview --host 0.0.0.0",
-    "test": "node --test tests/auth.test.js tests/cors.test.js src/api.test.js"
+    "start:api": "node --env-file=.env.local server/local.js",
+    "test": "node tests/auth.test.js && node tests/local-api.test.js && node src/api.test.js"
   },
   "dependencies": {
     "@netlify/database": "^2.0.1",
     "@netlify/functions": "^6.0.0",
     "drizzle-orm": "^1.0.0-beta.22",
+    "pg": "^8.23.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },

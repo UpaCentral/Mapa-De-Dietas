@@ -9,8 +9,8 @@
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "mapa-de-dietas",
-      "database_id": "00000000-0000-0000-0000-000000000000"
+      "database_name": "mapa-de-dietas-db",
+      "database_id": "ee631314-ee98-4114-bcd0-adf9cbc466c9"
     }
   ],
   "vars": {
