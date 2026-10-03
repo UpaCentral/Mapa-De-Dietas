@@ -1,36 +1,19 @@
-# Deploy Cloudflare
+# Frontend Cloudflare
 
-O Worker publica a interface, a API `/api/*` e usa o banco D1 `mapa-de-dietas-db`. Todas as chamadas do navegador ficam no mesmo domínio, sem dependência do Netlify ou preflight CORS.
+O frontend e servido por um Worker de assets estaticos em `https://mapa-de-dietas.tiupacentral.workers.dev`. O backend pode continuar no Netlify e a app usa `VITE_API_BASE` para apontar para a API correta.
 
-## Primeiro deploy
+## Publicacao
 
-Na pasta `Diestas`, instale as dependências e autentique o Wrangler:
+1. Na pasta `Diestas`, instale as dependencias com `npm install`.
+2. Crie o banco D1 e substitua o `database_id` em `wrangler.jsonc` pelo valor real do Cloudflare.
+3. Copie `.env.cloudflare.example` para `.env.cloudflare` e ajuste `VITE_API_BASE` com o endereco do backend real, ou deixe `/api` para usar o Worker do proprio projeto.
+4. Autentique o Wrangler na conta Cloudflare com `npx wrangler login`.
+5. Execute `npm run deploy:cloudflare`.
 
-```powershell
-npm install
-npx wrangler login
-npx wrangler d1 create mapa-de-dietas-db
-```
+O nome em `wrangler.jsonc` determina o subdominio do Worker. A conta Cloudflare precisa ter o subdominio `tiupacentral` ativo para gerar exatamente o endereco informado. Se o backend Netlify usar outro dominio, atualize `VITE_API_BASE` em `.env.cloudflare` e inclua a origem Cloudflare no allowlist de `netlify/functions/cors.js`.
 
-Copie o `database_id` retornado pelo D1 para `d1_databases[0].database_id` em `wrangler.jsonc`. Depois aplique o schema e publique:
+## Variaveis de ambiente
 
-```powershell
-npm run d1:migrate:remote
-npm run deploy:cloudflare
-```
-
-O nome do Worker em `wrangler.jsonc` deve permanecer `mapa-de-dietas` para publicar em `https://mapa-de-dietas.tiupacentral.workers.dev`.
-
-## Acesso
-
-O acesso padrão permanece `UPADieta` / `Upa@2026`. Configure credenciais próprias como secrets antes de usar em produção:
-
-```powershell
-npx wrangler secret put DIETA_USERNAME
-npx wrangler secret put DIETA_PASSWORD_SALT
-npx wrangler secret put DIETA_PASSWORD_HASH
-```
-
-`DIETA_PASSWORD_HASH` deve ser PBKDF2-HMAC-SHA256, 210.000 iterações e 32 bytes em hexadecimal; `DIETA_PASSWORD_SALT` deve ser o salt correspondente em Base64. Sessões expiram em oito horas e seus tokens são armazenados como hashes no D1.
-
-Para desenvolvimento local, `npm run dev` compila o frontend e inicia o Worker com D1 local. Aplique as migrations locais com `npm run d1:migrate:local`.
+- `.env.cloudflare.example` define a URL do backend usado pelo front em producao.
+- `.dev.vars.example` guarda os valores locais do Worker para login e D1 durante desenvolvimento.
+- Nao commite segredos reais; mantenha os arquivos de ambiente fora do Git e use `wrangler secret put` quando necessario.

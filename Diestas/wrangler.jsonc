@@ -1,8 +1,21 @@
 {
   "name": "mapa-de-dietas",
+  "main": "./worker.js",
   "compatibility_date": "2026-10-01",
   "assets": {
     "directory": "./dist",
     "not_found_handling": "single-page-application"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "mapa-de-dietas",
+      "database_id": "00000000-0000-0000-0000-000000000000"
+    }
+  ],
+  "vars": {
+    "DIETA_USERNAME": "UPADieta",
+    "DIETA_PASSWORD_SALT": "FDdQFTEzE1QuwfgKbMNnqg==",
+    "DIETA_PASSWORD_HASH": "0fe7c25dc2ff0d6ea7ee3d08783cbe76eb110da31bc894f63e6e5ba789597934"
   }
 }
