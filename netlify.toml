@@ -1,4 +1,0 @@
-[build]
-  base = "Diestas"
-  command = "npm install && npm run build"
-  publish = "dist"
