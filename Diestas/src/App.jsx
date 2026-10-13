@@ -80,7 +80,9 @@ function TelaLogin({ onLogin }) {
   return (
     <main className="login-page">
       <section className="login-panel">
-        <div className="login-mark" aria-hidden="true">UD</div>
+        <div className="login-mark" aria-hidden="true">
+          <img src="/fucs-logo.jpg" alt="Logo FUCS" />
+        </div>
         <p className="login-kicker">UPA CENTRAL</p>
         <h1>Mapa de Dietas</h1>
         <p className="login-subtitle">Acesso restrito à equipe autorizada</p>
@@ -422,7 +424,12 @@ function App() {
   return (
     <>
       <div className="topbar">
-        <span>Dashboard - Mapa de Dietas</span>
+        <div className="brand-wrap">
+          <div className="brand-mark">
+            <img src="/fucs-logo.jpg" alt="Logo FUCS" />
+          </div>
+          <span>Fluxo UPA Central · Mapa de Dietas</span>
+        </div>
         <button className="logout-button" onClick={handleLogout}>Sair</button>
       </div>
       <main className="app-shell">

@@ -20,17 +20,16 @@ test("password verification accepts only the matching PBKDF2 credential", async 
   const credential = { salt, passwordHash, iterations: 1000 };
 
   assert.equal(await verifyPassword("correct horse", credential), true);
+  assert.equal(await verifyPassword(" correct horse ", credential), true);
   assert.equal(await verifyPassword("wrong password", credential), false);
   assert.equal(await verifyPassword(undefined, credential), false);
 });
 
-test("accepts the default user credentials used in production with whitespace-safe input", async () => {
-  const credential = {
-    salt: "FDdQFTEzE1QuwfgKbMNnqg==",
-    passwordHash: "0fe7c25dc2ff0d6ea7ee3d08783cbe76eb110da31bc894f63e6e5ba789597934",
-  };
+test("uses the Cloudflare Workers-supported PBKDF2 iteration count by default", async () => {
+  const salt = "dGVzdC1zYWx0";
+  const defaultHash = await hashPassword("correct horse", salt);
+  const workerHash = await hashPassword("correct horse", salt, 100000);
 
-  assert.equal(await verifyPassword("Upa@2026", credential), true);
-  assert.equal(await verifyPassword(" Upa@2026 ", credential), true);
-  assert.equal(await verifyPassword("Upa@2027", credential), false);
+  assert.equal(defaultHash, workerHash);
+  assert.equal(await verifyPassword("correct horse", { salt, passwordHash: workerHash }), true);
 });

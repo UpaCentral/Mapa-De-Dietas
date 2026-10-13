@@ -45,3 +45,4 @@ CREATE TABLE IF NOT EXISTS sessoes (
   username TEXT NOT NULL,
   expires_at TEXT NOT NULL
 );
+

@@ -45,3 +45,12 @@ CREATE TABLE IF NOT EXISTS sessoes (
   username TEXT NOT NULL,
   expires_at TIMESTAMPTZ NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS registros_modulos (
+  id BIGSERIAL PRIMARY KEY,
+  modulo TEXT NOT NULL,
+  paciente TEXT NOT NULL,
+  dados JSONB NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);

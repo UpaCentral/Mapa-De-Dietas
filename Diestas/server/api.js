@@ -1,6 +1,6 @@
 import { and, asc, desc, eq, gt, lte } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/d1';
-import { configuracoes, leitos, pacientes, sessoes, setores } from '../db/schema.ts';
+import { configuracoes, leitos, pacientes, registrosModulos, sessoes, setores } from '../db/schema.ts';
 import {
   defaultCompanions,
   defaultDietas,
@@ -12,9 +12,7 @@ import {
 import { createSessionToken, hashSessionToken, verifyPassword } from './auth.js';
 
 const sessionTtlMs = 8 * 60 * 60 * 1000;
-const defaultLoginUsername = 'UPADieta';
-const defaultLoginSalt = 'FDdQFTEzE1QuwfgKbMNnqg==';
-const defaultLoginPasswordHash = '0fe7c25dc2ff0d6ea7ee3d08783cbe76eb110da31bc894f63e6e5ba789597934';
+const moduleNames = new Set(['cabec-paciente', 'processo-enfermagem', 'sae-enfermagem']);
 
 const fallbackState = {
   sessions: new Map(),
@@ -27,10 +25,24 @@ const fallbackState = {
     vias: [...defaultVias],
   },
   pacientes: [],
+  registros: [],
+  nextRegistroId: 1,
 };
 
 function json(body, status = 200) {
   return Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
+}
+
+function isModuleRecord(body) {
+  return typeof body?.paciente === 'string' && Boolean(body.paciente.trim())
+    && body.dados && typeof body.dados === 'object' && !Array.isArray(body.dados);
+}
+
+function getLoginCredential(env) {
+  const username = typeof env?.DIETA_USERNAME === 'string' ? env.DIETA_USERNAME.trim() : '';
+  const salt = typeof env?.DIETA_PASSWORD_SALT === 'string' ? env.DIETA_PASSWORD_SALT : '';
+  const passwordHash = typeof env?.DIETA_PASSWORD_HASH === 'string' ? env.DIETA_PASSWORD_HASH : '';
+  return username && salt && passwordHash ? { username, salt, passwordHash } : null;
 }
 
 async function getFallbackSession(request) {
@@ -51,7 +63,7 @@ async function getFallbackSession(request) {
 }
 
 async function handleFallbackRequest(request, env) {
-  const [recurso, id] = new URL(request.url).pathname
+  const [recurso, id, recordId] = new URL(request.url).pathname
     .replace(/^\/api\/?/, '')
     .split('/')
     .filter(Boolean)
@@ -63,21 +75,20 @@ async function handleFallbackRequest(request, env) {
   }
 
   if (recurso === 'login' && method === 'POST') {
-    const username = env.DIETA_USERNAME || defaultLoginUsername;
-    const salt = env.DIETA_PASSWORD_SALT || defaultLoginSalt;
-    const passwordHash = env.DIETA_PASSWORD_HASH || defaultLoginPasswordHash;
+    const credential = getLoginCredential(env);
+    if (!credential) return json({ error: 'Autenticação não configurada.' }, 503);
     const body = await request.json().catch(() => null);
     const normalizedUsername = typeof body?.username === 'string' ? body.username.trim() : '';
-    const passwordMatches = await verifyPassword(typeof body?.password === 'string' ? body.password : '', { salt, passwordHash });
-    if (normalizedUsername.toLowerCase() !== String(username).trim().toLowerCase() || !passwordMatches) {
+    const passwordMatches = await verifyPassword(typeof body?.password === 'string' ? body.password : '', credential);
+    if (normalizedUsername.toLowerCase() !== credential.username.toLowerCase() || !passwordMatches) {
       return json({ error: 'Usuário ou senha incorretos.' }, 401);
     }
 
     const token = createSessionToken();
     const expiresAt = new Date(Date.now() + sessionTtlMs).toISOString();
     const tokenHash = await hashSessionToken(token);
-    fallbackState.sessions.set(tokenHash, { username, expiresAt });
-    return json({ token, username });
+    fallbackState.sessions.set(tokenHash, { username: credential.username, expiresAt });
+    return json({ token, username: credential.username });
   }
 
   const session = await getFallbackSession(request);
@@ -90,6 +101,45 @@ async function handleFallbackRequest(request, env) {
   if (recurso === 'logout' && method === 'POST') {
     fallbackState.sessions.delete(session.tokenHash);
     return json({ ok: true });
+  }
+
+  if (recurso === 'modulos' && id && moduleNames.has(id)) {
+    if (method === 'GET' && !recordId) {
+      return json(fallbackState.registros
+        .filter((record) => record.modulo === id)
+        .sort((first, second) => second.updated_at.localeCompare(first.updated_at)));
+    }
+    if (method === 'POST' && !recordId) {
+      const body = await request.json().catch(() => null);
+      if (!isModuleRecord(body)) return json({ error: 'Informe o paciente e os dados do registro.' }, 400);
+      if (JSON.stringify(body.dados).length > 500000) return json({ error: 'Registro excede o tamanho permitido.' }, 413);
+      const timestamp = new Date().toISOString();
+      const record = {
+        id: fallbackState.nextRegistroId++,
+        modulo: id,
+        paciente: body.paciente.trim(),
+        dados: body.dados,
+        created_at: timestamp,
+        updated_at: timestamp,
+      };
+      fallbackState.registros.push(record);
+      return json({ ok: true, id: record.id }, 201);
+    }
+    if (recordId && method === 'PUT') {
+      const body = await request.json().catch(() => null);
+      if (!isModuleRecord(body)) return json({ error: 'Informe o paciente e os dados do registro.' }, 400);
+      if (JSON.stringify(body.dados).length > 500000) return json({ error: 'Registro excede o tamanho permitido.' }, 413);
+      const record = fallbackState.registros.find((item) => item.modulo === id && item.id === Number(recordId));
+      if (!record) return json({ error: 'Registro não encontrado.' }, 404);
+      record.paciente = body.paciente.trim();
+      record.dados = body.dados;
+      record.updated_at = new Date().toISOString();
+      return json({ ok: true });
+    }
+    if (recordId && method === 'DELETE') {
+      fallbackState.registros = fallbackState.registros.filter((record) => !(record.modulo === id && record.id === Number(recordId)));
+      return json({ ok: true });
+    }
   }
 
   if (recurso === 'setores' && method === 'GET') {
@@ -208,7 +258,7 @@ async function listarPacientes(db) {
 }
 
 async function handle(request, env, db) {
-  const [recurso, id] = new URL(request.url).pathname
+  const [recurso, id, recordId] = new URL(request.url).pathname
     .replace(/^\/api\/?/, '')
     .split('/')
     .filter(Boolean)
@@ -221,13 +271,12 @@ async function handle(request, env, db) {
   }
 
   if (recurso === 'login' && method === 'POST') {
-    const username = env.DIETA_USERNAME || defaultLoginUsername;
-    const salt = env.DIETA_PASSWORD_SALT || defaultLoginSalt;
-    const passwordHash = env.DIETA_PASSWORD_HASH || defaultLoginPasswordHash;
+    const credential = getLoginCredential(env);
+    if (!credential) return json({ error: 'Autenticação não configurada.' }, 503);
     const body = await request.json().catch(() => null);
     const normalizedUsername = typeof body?.username === 'string' ? body.username.trim() : '';
-    const passwordMatches = await verifyPassword(typeof body?.password === 'string' ? body.password : '', { salt, passwordHash });
-    if (normalizedUsername.toLowerCase() !== String(username).trim().toLowerCase() || !passwordMatches) {
+    const passwordMatches = await verifyPassword(typeof body?.password === 'string' ? body.password : '', credential);
+    if (normalizedUsername.toLowerCase() !== credential.username.toLowerCase() || !passwordMatches) {
       return json({ error: 'Usuário ou senha incorretos.' }, 401);
     }
 
@@ -236,10 +285,10 @@ async function handle(request, env, db) {
     await db.delete(sessoes).where(lte(sessoes.expiresAt, new Date().toISOString()));
     await db.insert(sessoes).values({
       tokenHash: await hashSessionToken(token),
-      username,
+      username: credential.username,
       expiresAt,
     });
-    return json({ token, username });
+    return json({ token, username: credential.username });
   }
 
   const session = await getSession(request, db);
@@ -252,6 +301,51 @@ async function handle(request, env, db) {
   if (recurso === 'logout' && method === 'POST') {
     await db.delete(sessoes).where(eq(sessoes.tokenHash, session.tokenHash));
     return json({ ok: true });
+  }
+
+  if (recurso === 'modulos' && id && moduleNames.has(id)) {
+    if (method === 'GET' && !recordId) {
+      const rows = await db.select().from(registrosModulos)
+        .where(eq(registrosModulos.modulo, id))
+        .orderBy(desc(registrosModulos.updatedAt));
+      return json(rows.map((record) => ({
+        id: record.id,
+        modulo: record.modulo,
+        paciente: record.paciente,
+        dados: JSON.parse(record.dados),
+        created_at: record.createdAt,
+        updated_at: record.updatedAt,
+      })));
+    }
+    if (method === 'POST' && !recordId) {
+      const body = await request.json().catch(() => null);
+      if (!isModuleRecord(body)) return json({ error: 'Informe o paciente e os dados do registro.' }, 400);
+      const serializedData = JSON.stringify(body.dados);
+      if (serializedData.length > 500000) return json({ error: 'Registro excede o tamanho permitido.' }, 413);
+      const [record] = await db.insert(registrosModulos).values({
+        modulo: id,
+        paciente: body.paciente.trim(),
+        dados: serializedData,
+      }).returning({ id: registrosModulos.id });
+      return json({ ok: true, id: record.id }, 201);
+    }
+    if (recordId && method === 'PUT') {
+      const body = await request.json().catch(() => null);
+      if (!isModuleRecord(body)) return json({ error: 'Informe o paciente e os dados do registro.' }, 400);
+      const serializedData = JSON.stringify(body.dados);
+      if (serializedData.length > 500000) return json({ error: 'Registro excede o tamanho permitido.' }, 413);
+      await db.update(registrosModulos).set({
+        paciente: body.paciente.trim(),
+        dados: serializedData,
+        updatedAt: new Date().toISOString(),
+      }).where(and(eq(registrosModulos.modulo, id), eq(registrosModulos.id, Number(recordId))));
+      return json({ ok: true });
+    }
+    if (recordId && method === 'DELETE') {
+      await db.delete(registrosModulos)
+        .where(and(eq(registrosModulos.modulo, id), eq(registrosModulos.id, Number(recordId))));
+      return json({ ok: true });
+    }
   }
 
   if (recurso === 'setores' && method === 'GET') {
@@ -308,6 +402,9 @@ export async function handleApiRequest(request, env) {
   if (request.method === 'OPTIONS') return new Response(null, { status: 204 });
 
   if (!env?.DB) {
+    if (env?.APP_ENV === 'production') {
+      return json({ error: 'Banco D1 não configurado.' }, 503);
+    }
     return handleFallbackRequest(request, env || {});
   }
 

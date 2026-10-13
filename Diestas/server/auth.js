@@ -1,5 +1,5 @@
 const encoder = new TextEncoder();
-const defaultIterations = 210000;
+const defaultIterations = 100000;
 
 function decodeBase64(value) {
   const binary = atob(value);

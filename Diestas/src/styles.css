@@ -1,10 +1,16 @@
 :root {
-  --orange: #f08124;
-  --green: #066b30;
-  --ink: #1c2430;
-  --muted: #667085;
-  --line: #d7dde5;
-  --bg: #eef2f5;
+  --bg1: #031a4a;
+  --bg2: #0a3a8f;
+  --bg3: #0d52c4;
+  --azul: #1e90ff;
+  --ciano: #3bb0ff;
+  --claro: #dfeeff;
+  --orange: var(--azul);
+  --green: #0d52c4;
+  --ink: #10213b;
+  --muted: #58718c;
+  --line: rgba(90, 170, 255, 0.32);
+  --bg: #edf5ff;
   --warn: #fff4d6;
   --danger: #ffe4e8;
   --white: #ffffff;
@@ -17,31 +23,78 @@
 html, body, #root {
   margin: 0;
   min-height: 100%;
-  background: var(--bg);
+  background: linear-gradient(135deg, var(--bg1), var(--bg2) 52%, var(--bg3));
   color: var(--ink);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: "Segoe UI", Arial, Helvetica, sans-serif;
+}
+
+body {
+  background-attachment: fixed;
 }
 
 button, input, select, textarea {
   font: inherit;
 }
 
+img {
+  max-width: 100%;
+  display: block;
+}
+
 .topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  background: var(--orange);
+  background: rgba(3, 26, 74, 0.82);
+  border-bottom: 1px solid rgba(90, 170, 255, 0.4);
   color: #fff;
   padding: 12px 18px;
-  font-size: 21px;
+  font-size: 20px;
   font-weight: 700;
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.22);
+  backdrop-filter: blur(12px);
+}
+
+.brand-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brand-mark,
+.login-mark {
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 10px 24px rgba(11, 43, 95, 0.24);
+}
+
+.brand-mark {
+  width: 52px;
+  height: 52px;
+  padding: 5px;
+}
+
+.brand-mark img,
+.login-mark img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .logout-button {
-  padding: 7px 13px;
-  border: 1px solid rgba(255, 255, 255, 0.6);
-  background: transparent;
+  padding: 9px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font-weight: 700;
 }
 
 .login-page {
@@ -49,42 +102,36 @@ button, input, select, textarea {
   min-height: 100vh;
   place-items: center;
   padding: 24px;
-  background-color: #173d37;
-  background-image: linear-gradient(135deg, rgba(13, 49, 45, 0.96), rgba(28, 89, 72, 0.88)), repeating-linear-gradient(135deg, transparent 0 32px, rgba(255, 255, 255, 0.035) 32px 34px);
+  background: linear-gradient(135deg, rgba(3, 26, 74, 0.96), rgba(10, 58, 143, 0.92) 56%, rgba(13, 82, 196, 0.9));
 }
 
 .login-panel {
-  width: min(100%, 420px);
+  width: min(100%, 430px);
   padding: 34px;
-  border: 1px solid rgba(255, 255, 255, 0.32);
-  border-radius: 8px;
-  background: #fff;
-  box-shadow: 0 24px 70px rgba(5, 26, 23, 0.32);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.97);
+  box-shadow: 0 28px 80px rgba(2, 14, 38, 0.38);
 }
 
 .login-mark {
-  display: grid;
-  width: 48px;
-  height: 48px;
-  place-items: center;
-  border-radius: 6px;
-  background: #e9f3ee;
-  color: #17634a;
-  font-size: 16px;
-  font-weight: 800;
+  width: 62px;
+  height: 62px;
+  padding: 6px;
 }
 
 .login-kicker {
   margin: 22px 0 6px;
-  color: #17634a;
+  color: var(--bg2);
   font-size: 11px;
   font-weight: 800;
+  letter-spacing: 0.16em;
 }
 
 .login-panel h1 {
   margin: 0;
-  color: #152f2a;
-  font-size: 27px;
+  color: #112748;
+  font-size: 31px;
 }
 
 .login-subtitle {
@@ -96,7 +143,7 @@ button, input, select, textarea {
 .login-panel form button {
   width: 100%;
   margin-top: 20px;
-  background: #17634a;
+  background: linear-gradient(135deg, var(--bg2), var(--azul));
 }
 
 .login-panel form button:disabled {
@@ -127,11 +174,11 @@ button, input, select, textarea {
 
 .panel {
   min-width: 0;
-  background: #fff;
+  background: rgba(255, 255, 255, 0.96);
   border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 14px;
-  box-shadow: 0 2px 8px rgba(16, 24, 40, 0.08);
+  border-radius: 18px;
+  padding: 16px;
+  box-shadow: 0 16px 36px rgba(7, 28, 67, 0.12);
 }
 
 h2 {
@@ -155,11 +202,18 @@ label {
 input, select, textarea {
   width: 100%;
   margin-top: 4px;
-  border: 1px solid #b8c0cc;
-  border-radius: 6px;
-  padding: 8px;
-  background: #fff;
+  border: 1px solid rgba(90, 170, 255, 0.35);
+  border-radius: 10px;
+  padding: 9px 10px;
+  background: #f9fbff;
   color: var(--ink);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+input:focus, select:focus, textarea:focus {
+  border-color: var(--azul);
+  box-shadow: 0 0 0 4px rgba(30, 144, 255, 0.12);
+  outline: none;
 }
 
 textarea {
@@ -205,22 +259,25 @@ textarea {
 
 button {
   border: 0;
-  border-radius: 6px;
-  padding: 10px;
-  background: var(--orange);
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: linear-gradient(135deg, var(--bg2), var(--azul));
   color: #fff;
   font-weight: 700;
   cursor: pointer;
   font-size: 14px;
+  box-shadow: 0 10px 22px rgba(30, 144, 255, 0.2);
 }
 
 button.secondary {
-  background: var(--green);
+  background: linear-gradient(135deg, var(--bg3), var(--ciano));
 }
 
 button.ghost {
-  background: #edf1f5;
-  color: #1f2937;
+  background: #edf4ff;
+  color: #18355d;
+  box-shadow: none;
+  border: 1px solid rgba(90, 170, 255, 0.25);
 }
 
 button.danger {
@@ -236,9 +293,9 @@ button.danger {
 
 .summary-card {
   border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 10px;
-  background: #fff;
+  border-radius: 14px;
+  padding: 12px 10px;
+  background: linear-gradient(180deg, #f8fbff, #edf5ff);
 }
 
 .summary-number {

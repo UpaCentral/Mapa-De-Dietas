@@ -42,6 +42,20 @@ test('rejects invalid login credentials without touching the database', async ()
   assert.equal(response.headers.get('Access-Control-Allow-Origin'), allowedOrigin);
 });
 
+test('falls back to the default local credentials when no database is configured', async () => {
+  const response = await handleLocalApiRequest(new Request('https://api-dieta.upacentral.co.uk/api/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Origin: allowedOrigin },
+    body: JSON.stringify({ username: 'UPADieta', password: 'Upa@2026' }),
+  }), { allowedOrigins: [allowedOrigin] });
+
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.equal(body.username, 'UPADieta');
+  assert.ok(body.token);
+  assert.equal(response.headers.get('Access-Control-Allow-Origin'), allowedOrigin);
+});
+
 test('creates a hashed database session for valid login credentials', async () => {
   const statements = [];
   const pool = {
@@ -63,4 +77,33 @@ test('creates a hashed database session for valid login credentials', async () =
   assert.equal(statements.length, 2);
   assert.match(statements[1].statement, /INSERT INTO sessoes/);
   assert.notEqual(statements[1].values[0], body.token);
+});
+
+test('stores an authenticated module record through the shared API', async () => {
+  const statements = [];
+  const pool = {
+    query: async (statement, values = []) => {
+      statements.push({ statement, values });
+      if (/SELECT token_hash, username FROM sessoes/.test(statement)) {
+        return { rows: [{ token_hash: 'stored-hash', username: credentials.username }] };
+      }
+      if (/INSERT INTO registros_modulos/.test(statement)) return { rows: [{ id: 42 }] };
+      return { rows: [] };
+    },
+  };
+  const login = await handleLocalApiRequest(new Request('https://api-dieta.upacentral.co.uk/api/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(credentials),
+  }), { ...credentials, pool });
+  const { token } = await login.json();
+  const response = await handleLocalApiRequest(new Request('https://api-dieta.upacentral.co.uk/api/modulos/cabec-paciente', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ paciente: 'Paciente Teste', dados: { nome: 'Paciente Teste' } }),
+  }), { ...credentials, pool });
+
+  assert.equal(response.status, 201);
+  assert.deepEqual(await response.json(), { ok: true, id: 42 });
+  assert.match(statements.at(-1).statement, /INSERT INTO registros_modulos/);
 });

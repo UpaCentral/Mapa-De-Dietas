@@ -2,17 +2,35 @@ import { timingSafeEqual } from 'node:crypto';
 import {
   defaultCompanions,
   defaultDietas,
+  defaultLeitos,
+  defaultSetores,
   defaultStatus,
   defaultVias,
 } from '../src/data.js';
 import { createSessionToken, hashSessionToken } from './auth.js';
 
 const sessionTtlMs = 8 * 60 * 60 * 1000;
+const defaultLocalUsername = 'UPADieta';
+const defaultLocalPassword = 'Upa@2026';
 const configDefaults = {
   acompanhante: defaultCompanions,
   dietas: defaultDietas,
   status: defaultStatus,
   vias: defaultVias,
+};
+const moduleNames = new Set(['cabec-paciente', 'processo-enfermagem', 'sae-enfermagem']);
+const fallbackState = {
+  sessions: new Map(),
+  config: {
+    setores: [...defaultSetores],
+    leitos: [...defaultLeitos],
+    status: [...defaultStatus],
+    acompanhante: [...defaultCompanions],
+    dietas: [...defaultDietas],
+    vias: [...defaultVias],
+  },
+  pacientes: [],
+  registros: [],
 };
 
 function json(body, status = 200, headers = {}) {
@@ -81,8 +99,12 @@ export async function handleLocalApiRequest(request, { pool, username, password,
 
   if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: corsHeaders });
 
+  const effectiveUsername = String(username || defaultLocalUsername).trim();
+  const effectivePassword = String(password || defaultLocalPassword);
+  const useFallback = !pool || typeof pool.query !== 'function';
+
   try {
-    const [resource, id] = new URL(request.url).pathname
+    const [resource, id, recordId] = new URL(request.url).pathname
       .replace(/^\/api\/?/, '')
       .split('/')
       .filter(Boolean)
@@ -90,30 +112,127 @@ export async function handleLocalApiRequest(request, { pool, username, password,
     const method = request.method;
 
     if (resource === 'health' && method === 'GET') {
+      if (useFallback) return json({ ok: true }, 200, corsHeaders);
       await pool.query('SELECT 1');
       return json({ ok: true }, 200, corsHeaders);
     }
 
     if (resource === 'login' && method === 'POST') {
       const body = await parseBody(request);
-      if (!body || !constantTimeEquals(String(body.username || '').trim().toLowerCase(), username.toLowerCase())
-        || !constantTimeEquals(String(body.password || ''), password)) {
+      if (!body || !constantTimeEquals(String(body.username || '').trim().toLowerCase(), effectiveUsername.toLowerCase())
+        || !constantTimeEquals(String(body.password || ''), effectivePassword)) {
         return json({ error: 'Usuário ou senha incorretos.' }, 401, corsHeaders);
       }
 
       const token = createSessionToken();
       const expiresAt = new Date(Date.now() + sessionTtlMs).toISOString();
+      if (useFallback) {
+        const tokenHash = await hashSessionToken(token);
+        fallbackState.sessions.set(tokenHash, { username: effectiveUsername, expiresAt });
+        return json({ token, username: effectiveUsername }, 200, corsHeaders);
+      }
+
       await pool.query('DELETE FROM sessoes WHERE expires_at <= NOW()');
       await pool.query(
         'INSERT INTO sessoes (token_hash, username, expires_at) VALUES ($1, $2, $3)',
-        [await hashSessionToken(token), username, expiresAt],
+        [await hashSessionToken(token), effectiveUsername, expiresAt],
       );
-      return json({ token, username }, 200, corsHeaders);
+      return json({ token, username: effectiveUsername }, 200, corsHeaders);
     }
 
     const authorization = request.headers.get('authorization') || '';
     const token = authorization.startsWith('Bearer ') ? authorization.slice(7) : '';
     if (!token) return json({ error: 'Sessão inválida ou expirada.' }, 401, corsHeaders);
+
+    if (useFallback) {
+      const tokenHash = await hashSessionToken(token);
+      const session = fallbackState.sessions.get(tokenHash);
+      if (!session || new Date(session.expiresAt).getTime() <= Date.now()) {
+        return json({ error: 'Sessão inválida ou expirada.' }, 401, corsHeaders);
+      }
+
+      if (resource === 'session' && method === 'GET') {
+        return json({ ok: true, username: session.username }, 200, corsHeaders);
+      }
+      if (resource === 'logout' && method === 'POST') {
+        fallbackState.sessions.delete(tokenHash);
+        return json({ ok: true }, 200, corsHeaders);
+      }
+      if (resource === 'modulos' && id && moduleNames.has(id)) {
+        if (method === 'GET' && !recordId) {
+          return json(fallbackState.registros.filter((row) => row.modulo === id), 200, corsHeaders);
+        }
+        if (method === 'POST' && !recordId) {
+          const body = await parseBody(request);
+          if (!body || typeof body.paciente !== 'string' || !body.paciente.trim()
+            || !body.dados || typeof body.dados !== 'object' || Array.isArray(body.dados)) {
+            return json({ error: 'Informe o paciente e os dados do registro.' }, 400, corsHeaders);
+          }
+          const record = { id: Date.now(), modulo: id, paciente: body.paciente.trim(), dados: body.dados, updated_at: new Date().toISOString() };
+          fallbackState.registros.unshift(record);
+          return json({ ok: true, id: record.id }, 201, corsHeaders);
+        }
+        if (recordId && method === 'PUT') {
+          const body = await parseBody(request);
+          const record = fallbackState.registros.find((row) => row.modulo === id && row.id === Number(recordId));
+          if (!record) return json({ error: 'Registro não encontrado.' }, 404, corsHeaders);
+          if (!body || typeof body.paciente !== 'string' || !body.paciente.trim()
+            || !body.dados || typeof body.dados !== 'object' || Array.isArray(body.dados)) {
+            return json({ error: 'Informe o paciente e os dados do registro.' }, 400, corsHeaders);
+          }
+          Object.assign(record, { paciente: body.paciente.trim(), dados: body.dados, updated_at: new Date().toISOString() });
+          return json({ ok: true }, 200, corsHeaders);
+        }
+        if (recordId && method === 'DELETE') {
+          fallbackState.registros = fallbackState.registros.filter((row) => row.modulo !== id || row.id !== Number(recordId));
+          return json({ ok: true }, 200, corsHeaders);
+        }
+      }
+      if (resource === 'setores' && method === 'GET') {
+        return json(fallbackState.config.setores, 200, corsHeaders);
+      }
+      if (resource === 'leitos' && method === 'GET') {
+        return json(fallbackState.config.leitos.map((nome) => ({ id: Math.random(), setor_id: null, nome })), 200, corsHeaders);
+      }
+      if (resource === 'config' && id && Object.hasOwn(configDefaults, id)) {
+        if (method === 'GET') {
+          return json(fallbackState.config[id] || [], 200, corsHeaders);
+        }
+        if (method === 'POST') {
+          const body = await parseBody(request);
+          const values = [...new Set((Array.isArray(body) ? body : []).filter(Boolean).map(String))];
+          fallbackState.config[id] = values;
+          return json({ ok: true, values }, 200, corsHeaders);
+        }
+      }
+      if (resource === 'pacientes') {
+        if (method === 'GET' && !id) return json(fallbackState.pacientes, 200, corsHeaders);
+        if (method === 'POST' && !id) {
+          const body = await parseBody(request);
+          if (!body || typeof body.nome !== 'string' || !body.nome.trim()) {
+            return json({ error: 'Informe o nome do paciente.' }, 400, corsHeaders);
+          }
+          const paciente = { id: Date.now(), ...body };
+          fallbackState.pacientes.unshift(paciente);
+          return json({ ok: true, id: paciente.id }, 201, corsHeaders);
+        }
+        if (id && method === 'PUT') {
+          const body = await parseBody(request);
+          if (!body || typeof body.nome !== 'string' || !body.nome.trim()) {
+            return json({ error: 'Informe o nome do paciente.' }, 400, corsHeaders);
+          }
+          const index = fallbackState.pacientes.findIndex((item) => item.id === Number(id));
+          if (index >= 0) fallbackState.pacientes[index] = { ...fallbackState.pacientes[index], ...body };
+          return json({ ok: true }, 200, corsHeaders);
+        }
+        if (id && method === 'DELETE') {
+          fallbackState.pacientes = fallbackState.pacientes.filter((item) => item.id !== Number(id));
+          return json({ ok: true }, 200, corsHeaders);
+        }
+      }
+      return json({ error: 'Rota não encontrada.' }, 404, corsHeaders);
+    }
+
     const sessionResult = await pool.query(
       'SELECT token_hash, username FROM sessoes WHERE token_hash = $1 AND expires_at > NOW() LIMIT 1',
       [await hashSessionToken(token)],
@@ -127,6 +246,45 @@ export async function handleLocalApiRequest(request, { pool, username, password,
     if (resource === 'logout' && method === 'POST') {
       await pool.query('DELETE FROM sessoes WHERE token_hash = $1', [session.token_hash]);
       return json({ ok: true }, 200, corsHeaders);
+    }
+    if (resource === 'modulos' && id && moduleNames.has(id)) {
+      if (method === 'GET' && !recordId) {
+        const result = await pool.query(
+          'SELECT id, modulo, paciente, dados, updated_at FROM registros_modulos WHERE modulo = $1 ORDER BY updated_at DESC',
+          [id],
+        );
+        return json(result.rows, 200, corsHeaders);
+      }
+      if (method === 'POST' && !recordId) {
+        const body = await parseBody(request);
+        if (!body || typeof body.paciente !== 'string' || !body.paciente.trim()
+          || !body.dados || typeof body.dados !== 'object' || Array.isArray(body.dados)) {
+          return json({ error: 'Informe o paciente e os dados do registro.' }, 400, corsHeaders);
+        }
+        if (JSON.stringify(body.dados).length > 500000) return json({ error: 'Registro excede o tamanho permitido.' }, 413, corsHeaders);
+        const result = await pool.query(
+          'INSERT INTO registros_modulos (modulo, paciente, dados) VALUES ($1, $2, $3::jsonb) RETURNING id',
+          [id, body.paciente.trim(), JSON.stringify(body.dados)],
+        );
+        return json({ ok: true, id: result.rows[0].id }, 201, corsHeaders);
+      }
+      if (recordId && method === 'PUT') {
+        const body = await parseBody(request);
+        if (!body || typeof body.paciente !== 'string' || !body.paciente.trim()
+          || !body.dados || typeof body.dados !== 'object' || Array.isArray(body.dados)) {
+          return json({ error: 'Informe o paciente e os dados do registro.' }, 400, corsHeaders);
+        }
+        if (JSON.stringify(body.dados).length > 500000) return json({ error: 'Registro excede o tamanho permitido.' }, 413, corsHeaders);
+        await pool.query(
+          'UPDATE registros_modulos SET paciente = $1, dados = $2::jsonb, updated_at = NOW() WHERE modulo = $3 AND id = $4',
+          [body.paciente.trim(), JSON.stringify(body.dados), id, recordId],
+        );
+        return json({ ok: true }, 200, corsHeaders);
+      }
+      if (recordId && method === 'DELETE') {
+        await pool.query('DELETE FROM registros_modulos WHERE modulo = $1 AND id = $2', [id, recordId]);
+        return json({ ok: true }, 200, corsHeaders);
+      }
     }
     if (resource === 'setores' && method === 'GET') {
       const result = await pool.query('SELECT id, nome FROM setores ORDER BY nome ASC');

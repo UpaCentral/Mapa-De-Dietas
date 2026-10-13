@@ -54,3 +54,12 @@ export const sessoes = sqliteTable("sessoes", {
   username: text().notNull(),
   expiresAt: text("expires_at").notNull(),
 });
+
+export const registrosModulos = sqliteTable("registros_modulos", {
+  id: integer().primaryKey({ autoIncrement: true }),
+  modulo: text().notNull(),
+  paciente: text().notNull(),
+  dados: text().notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});

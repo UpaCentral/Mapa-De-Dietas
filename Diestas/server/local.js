@@ -11,15 +11,19 @@ import {
 } from '../src/data.js';
 import { handleLocalApiRequest } from './local-api.js';
 
-const required = ['DATABASE_URL', 'DIETA_USERNAME', 'DIETA_PASSWORD'];
+const required = ['DATABASE_URL'];
 const missing = required.filter((name) => !process.env[name]);
-if (missing.length) throw new Error(`Configure as variáveis obrigatórias: ${missing.join(', ')}`);
+if (missing.length) {
+  console.warn(`Banco não configurado: ${missing.join(', ')}. Iniciando em modo fallback local.`);
+}
 
+const defaultUsername = 'UPADieta';
+const defaultPassword = 'Upa@2026';
 const allowedOrigins = (process.env.CORS_ORIGINS || '')
   .split(',')
   .map((origin) => origin.trim())
   .filter(Boolean);
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+const pool = process.env.DATABASE_URL ? new Pool({ connectionString: process.env.DATABASE_URL }) : null;
 
 async function initializeDatabase() {
   const schema = await readFile(new URL('./local-schema.sql', import.meta.url), 'utf8');
@@ -73,7 +77,11 @@ function readRequestBody(request) {
   });
 }
 
-await initializeDatabase();
+if (pool) {
+  await initializeDatabase();
+} else {
+  console.warn('API local em modo fallback: autenticação e dados ficam em memória. Configure DATABASE_URL para persistência real.');
+}
 
 const server = createServer(async (incoming, outgoing) => {
   try {
@@ -90,8 +98,8 @@ const server = createServer(async (incoming, outgoing) => {
     });
     const response = await handleLocalApiRequest(request, {
       pool,
-      username: process.env.DIETA_USERNAME,
-      password: process.env.DIETA_PASSWORD,
+      username: process.env.DIETA_USERNAME || defaultUsername,
+      password: process.env.DIETA_PASSWORD || defaultPassword,
       allowedOrigins,
     });
     outgoing.writeHead(response.status, Object.fromEntries(response.headers));
@@ -110,7 +118,7 @@ server.listen(port, '0.0.0.0', () => {
 
 async function shutdown() {
   server.close();
-  await pool.end();
+  if (pool) await pool.end();
 }
 
 process.once('SIGINT', shutdown);
