@@ -22,11 +22,11 @@ if (-not (Test-Path $wranglerPath) -or -not (Test-Path $configPath)) {
   throw 'Execute npm install na pasta Diestas antes de configurar a autenticacao.'
 }
 
-$securePassword = Read-Host 'Defina uma senha forte para o usuario UPADieta' -AsSecureString
+$securePassword = Read-Host '01533179945Upa@' -AsSecureString
 $password = ConvertTo-PlainText -SecureString $securePassword
 
 if ($password.Trim().Length -lt 14) {
-  throw 'Use uma senha com pelo menos 14 caracteres.'
+  throw '01533179945Upa@'
 }
 
 $randomGenerator = [System.Security.Cryptography.RandomNumberGenerator]::Create()
