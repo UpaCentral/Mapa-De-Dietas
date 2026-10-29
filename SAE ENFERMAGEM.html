@@ -56,6 +56,7 @@ body.edit-sae input[data-edit-key],body.edit-sae textarea[data-edit-key],body.ed
 .full{grid-column:1/-1}
 label{display:block;font-size:12px;font-weight:800;color:#344054}
 input,select,textarea{width:100%;border:1px solid #b9c2cf;border-radius:7px;padding:8px;margin-top:4px;font-size:14px;background:#fff;color:var(--ink)}
+input,select,textarea{min-width:0}
 textarea{min-height:66px;resize:vertical}
 .prescription-section textarea{min-height:88px}
 .conditional{display:none}
@@ -83,10 +84,41 @@ textarea{min-height:66px;resize:vertical}
 .presc-table textarea{min-height:88px;border:0;margin:0}
 .presc-table input,.presc-table select{margin:0}
 .rowActions{width:72px;white-space:nowrap}
+.prescription-section{min-width:0}
+.presc-table{min-width:0}
 .printArea{display:none}
 @media(max-width:950px){
   .bar{display:block}.actions{margin-top:10px}
-  .cards,.grid,.grid-2,.grid-3{grid-template-columns:1fr}
+  .cards,.grid,.grid-2,.grid-3{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:600px){
+  .bar{padding:10px}
+  .brand{align-items:flex-start;gap:8px}
+  .brand-mark{width:64px;height:56px}
+  .brand h1{font-size:19px}
+  .brand p{font-size:12px}
+  .actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+  .actions button{min-width:0;padding:9px 7px;font-size:12px}
+  .container{padding:8px}
+  .cards{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .grid,.grid-2,.grid-3{grid-template-columns:minmax(0,1fr)}
+  .section{min-width:0;padding:10px}
+  .presc-table,.presc-table tbody,.presc-table tr,.presc-table td{display:block;width:100%}
+  .presc-table thead{display:none}
+  .presc-table tbody tr{border:1px solid var(--line);border-radius:8px;margin:10px 0;padding:8px}
+  .presc-table td{border:0;padding:6px 0}
+  .presc-table td:before{display:block;margin-bottom:4px;font-size:11px;font-weight:800;color:var(--muted)}
+  .presc-table td:nth-child(1):before{content:"Prescrição"}
+  .presc-table td:nth-child(2):before{content:"Aprazamento"}
+  .presc-table td:nth-child(3):before{content:"Início"}
+  .presc-table td:nth-child(4):before{content:"Horários"}
+  .presc-table td:nth-child(5):before{content:"Ação"}
+  .rowActions{width:auto}
+  .modal{padding:8px}
+  .modal-panel{padding:12px}
+  .modal-head h2{font-size:17px}
+  .modal-actions{justify-content:stretch}
+  .modal-actions button{flex:1 1 130px}
 }
 @media print{
   @page{size:A4 portrait;margin:10mm}
@@ -905,8 +937,6 @@ document.querySelectorAll('input,select,textarea').forEach(x=>{x.addEventListene
 </script>
 </body>
 </html>
-
-
 
 
 

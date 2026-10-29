@@ -2,6 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Cabeceira do Paciente - Mão Amiga</title>
 <style>
 *{box-sizing:border-box}
@@ -115,6 +116,44 @@ b{font-weight:700}
 
 
 .print-all .risk-page{display:block!important}
+@media screen and (max-width:850px){
+  .topbar{padding:10px 14px;font-size:18px}
+  .app{grid-template-columns:minmax(0,1fr);gap:12px;padding:12px}
+  .panel{min-width:0}
+  .preview{min-width:0;max-width:100%;overflow:visible}
+  .page,.risk-page{width:100%;height:auto;min-height:0;margin:0;padding:16px;overflow:visible}
+  .title{font-size:clamp(16px,5vw,22pt);overflow-wrap:anywhere}
+  table.main,table.bottom-table{display:block;width:100%}
+  .main tbody,.bottom-table tbody{display:block;width:100%}
+  .main tr{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+  .main td{min-width:0;overflow-wrap:anywhere}
+  .main td[colspan]{grid-column:1/-1}
+  .main .nome{font-size:14pt}
+  .bottom-table tr{display:flex;flex-direction:column}
+  .bottom-table td{width:100%;height:auto;min-height:0}
+  .clock-cell img{width:min(60mm,70vw);height:auto}
+  .risk-cell{padding:12px}
+  .risk-row{grid-template-columns:minmax(0,1fr) auto auto;column-gap:8px;font-size:14px}
+  .circle{width:32px;height:32px}
+  .footer-upa{position:static;height:auto;margin-top:16px;gap:12px;flex-wrap:wrap;align-items:flex-start}
+  .footer-left img{max-width:100%;height:auto}
+  .footer-right{text-align:left}
+  .risk-page .grid2{grid-template-columns:minmax(0,1fr)}
+  .risk-page .box{height:auto!important;min-height:0}
+  .risk-page .content{font-size:14px}
+  .risk-footer{position:static;gap:12px;flex-wrap:wrap;align-items:flex-start;margin-top:16px}
+  .risk-footer img{max-width:100%}
+  .risk-footer .footer-text{text-align:left}
+}
+@media screen and (max-width:600px){
+  .app{padding:8px}
+  .panel{padding:10px}
+  .row3{grid-template-columns:minmax(0,1fr)}
+  .row2{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .main tr{grid-template-columns:minmax(0,1fr)}
+  .main td[colspan]{grid-column:auto}
+  .risk-row{grid-template-columns:minmax(0,1fr) auto auto}
+}
 @media print{
   body{background:white}
   .topbar,.panel.form{display:none!important}
