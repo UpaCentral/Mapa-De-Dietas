@@ -21,10 +21,10 @@ O comando `prepare:legacy` copia as páginas existentes para `public/legacy` e i
 O workflow `.github/workflows/deploy-pages.yml` compila e publica `main` automaticamente em `https://upacentral.github.io/Mapa-De-Dietas/`.
 
 1. Em **Settings → Pages**, altere a fonte para **GitHub Actions**.
-2. Em **Settings → Secrets and variables → Actions**, crie os secrets `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY` com a URL do projeto e a chave pública `sb_publishable_`.
+2. Em **Settings → Secrets and variables → Actions**, crie o secret `VITE_SUPABASE_PUBLISHABLE_KEY` com a chave pública `sb_publishable_`. O workflow já usa a URL pública deste projeto; se preferir, ela também pode ser definida como variável `VITE_SUPABASE_URL`.
 3. Faça push para `main` ou execute **Actions → Deploy GitHub Pages → Run workflow**.
 
-O build falha explicitamente se algum dos dois secrets estiver ausente. Não use a chave `sb_secret_` ou `service_role` no site.
+O build falha explicitamente se a chave pública estiver ausente. Não use a chave `sb_secret_` ou `service_role` no site.
 
 ## Build de produção
 

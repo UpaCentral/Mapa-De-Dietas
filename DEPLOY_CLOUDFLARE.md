@@ -5,10 +5,10 @@
 O repositório publica automaticamente a pasta `dist/` no endereço `https://upacentral.github.io/Mapa-De-Dietas/` pelo workflow `.github/workflows/deploy-pages.yml`.
 
 1. Em **Settings → Pages**, selecione **GitHub Actions** como fonte de publicação.
-2. Em **Settings → Secrets and variables → Actions**, configure `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY` usando a URL do projeto e a chave pública `sb_publishable_`.
+2. Em **Settings → Secrets and variables → Actions**, configure o secret `VITE_SUPABASE_PUBLISHABLE_KEY` com a chave pública `sb_publishable_`. A URL pública do projeto já está definida no workflow; opcionalmente, substitua-a com a variável `VITE_SUPABASE_URL`.
 3. Faça push para `main` ou inicie manualmente o workflow **Deploy GitHub Pages** na aba **Actions**.
 
-O workflow exige os dois secrets e falha se algum estiver ausente. Nunca configure uma chave `sb_secret_` ou `service_role` no front-end.
+O workflow usa a URL do projeto já definida e exige apenas a chave pública; falha se essa chave estiver ausente. Nunca configure uma chave `sb_secret_` ou `service_role` no front-end.
 
 ## Preparar a versão de produção
 
