@@ -1,6 +1,9 @@
 /Diestas/node_modules/
 /Diestas/dist/
 /Diestas/data/Dieta.db
+/node_modules/
+/dist/
+/public/legacy/
 **/.env
 **/.env.*
 !**/.env.example

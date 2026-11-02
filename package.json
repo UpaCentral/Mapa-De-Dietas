@@ -1,0 +1,25 @@
+{
+  "name": "upa-central-portal",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Portal de sistemas da UPA Central 24h",
+  "type": "module",
+  "scripts": {
+    "prepare:legacy": "node scripts/prepare-legacy.mjs",
+    "predev": "npm run prepare:legacy",
+    "dev": "vite --host 0.0.0.0",
+    "prebuild": "npm run prepare:legacy",
+    "build": "vite build",
+    "preview": "vite preview --host 0.0.0.0"
+  },
+  "dependencies": {
+    "qrcode.react": "^4.2.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "react-router-dom": "^7.18.5",
+    "@supabase/supabase-js": "^2.81.1"
+  },
+  "devDependencies": {
+    "vite": "^8.3.5"
+  }
+}

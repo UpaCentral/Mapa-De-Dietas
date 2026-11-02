@@ -304,7 +304,10 @@ let leitos = [
   "Isolamento - Quarto 2",
   "Sala de Aplicacao"
 ];
-let registros = [];
+let registros = JSON.parse(localStorage.getItem("mapaDietasRegistros") || "[]");
+if (!Array.isArray(registros)) {
+  throw new Error("Os registros salvos do mapa de dietas estão inválidos.");
+}
 
 const $ = id => document.getElementById(id);
 const campos = ["leito","status","nome","nascimento","idade","mae","prontuario","setor","acompanhante","justAcompanhante","internacao","dieta","via","restricao","alergias","obs"];
@@ -480,6 +483,7 @@ function salvar(){
   const idx = registros.findIndex(r => r.leito === item.leito);
   if(idx >= 0) registros[idx] = item; else registros.push(item);
   registros.sort(compararRegistros);
+  localStorage.setItem("mapaDietasRegistros", JSON.stringify(registros));
   desenhar();
   carregarFormulario(null);
   $("leito").focus();
@@ -489,6 +493,7 @@ function excluir(){
   if(!leito) return;
   if(!confirm("Excluir os dados deste leito?")) return;
   registros = registros.filter(r => r.leito !== leito);
+  localStorage.setItem("mapaDietasRegistros", JSON.stringify(registros));
   carregarFormulario(null);
   desenhar();
 }
@@ -647,6 +652,7 @@ $("fecharConfig").addEventListener("click", () => $("configPanel").classList.rem
 $("limparTudo").addEventListener("click", () => {
   if(!confirm("Limpar todo o mapa de dietas?")) return;
   registros = [];
+  localStorage.setItem("mapaDietasRegistros", JSON.stringify(registros));
   carregarFormulario(null);
   desenhar();
 });

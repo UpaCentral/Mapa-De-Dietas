@@ -1,22 +1,25 @@
-# Frontend Cloudflare
+# Publicação
 
-O frontend e servido por um Worker de assets estaticos em `https://mapa-de-dietas.tiupacentral.workers.dev`. O backend pode continuar no Netlify e a app usa `VITE_API_BASE` para apontar para a API correta.
+## Preparar a versão de produção
 
-## Publicacao
+Na pasta `Mapa-De-Dietas`, execute:
 
-1. Na pasta `Diestas`, instale as dependencias com `npm install`.
-2. Confirme o banco D1 vinculado em `wrangler.jsonc` e aplique as migracoes pendentes com `npx wrangler d1 migrations apply mapa-de-dietas-db --remote`.
-3. Configure credenciais novas executando `powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\configure-cloudflare-auth.ps1`. O script solicita a senha sem exibi-la, exige pelo menos 14 caracteres, gera salt/hash PBKDF2-SHA256 com 210000 iteracoes e envia os tres secrets direto ao Wrangler sem gravar valores em arquivos.
-4. Copie `.env.cloudflare.example` para `.env.cloudflare` e mantenha `VITE_API_BASE=/api` para usar a API do proprio Worker.
-5. Autentique o Wrangler na conta Cloudflare com `npx wrangler login`.
-6. Execute `npm run deploy:cloudflare`.
+```powershell
+npm ci
+npm run build
+```
 
-O Worker usa `APP_ENV=production`: sem D1 ou sem os secrets de autenticacao, a API responde com erro de configuracao em vez de aceitar dados temporarios ou uma senha padrao. O script de configuracao requer que o Wrangler ja esteja autenticado com `npx wrangler login` e nunca mostra ou grava os valores secretos.
+Publique o conteúdo de `dist/` em um host de arquivos estáticos. Em Cloudflare Pages, configure a raiz do projeto como `Mapa-De-Dietas`, o comando de build como `npm run build` e o diretório de saída como `dist`. Configure `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY` como variáveis de ambiente de build; não configure uma chave `service_role` no front-end.
 
-O nome em `wrangler.jsonc` determina o subdominio do Worker. A conta Cloudflare precisa ter o subdominio `tiupacentral` ativo para gerar exatamente o endereco informado. Se o backend Netlify usar outro dominio, atualize `VITE_API_BASE` em `.env.cloudflare` e inclua a origem Cloudflare no allowlist de `netlify/functions/cors.js`.
+Antes de publicar, valide o portal e cada formulário em um ambiente de homologação. O build inclui as páginas clínicas em `dist/legacy/`; os comandos `predev` e `prebuild` mantêm essas cópias sincronizadas com os HTMLs originais.
 
-## Variaveis de ambiente
+## Dados e integração
 
-- `.env.cloudflare.example` define a URL do backend usado pelo front em producao.
-- `.dev.vars.example` guarda os valores locais do Worker para login e D1 durante desenvolvimento.
-- Nao commite segredos reais; mantenha os arquivos de ambiente fora do Git e use `wrangler secret put` quando necessario.
+- Execute `supabase/schema.sql` no SQL Editor do projeto Supabase antes de abrir o portal. O script cria quatro tabelas separadas com RLS para registros autenticados.
+- Crie a conta de acesso em **Authentication → Users** no painel do Supabase e insira o UUID dessa conta em `public.upa_authorized_users` (consulte o README). O portal não cria contas nem armazena a senha no código; usuários fora da lista não acessam as tabelas mesmo se conseguirem autenticar.
+- Cada sistema mantém uma linha compartilhada JSONB na tabela correspondente. O estado local anterior é enviado à tabela na primeira abertura quando ainda não existe registro remoto.
+- A conta compartilhada permite que qualquer profissional autenticado acesse os mesmos dados e não registra qual profissional fez cada alteração. Alterações simultâneas podem se sobrescrever; prefira contas individuais antes de uso clínico.
+- Ao sair do portal, o cache local dos quatro sistemas é removido. As páginas clínicas acessadas diretamente, fora do portal, não exibem os dados.
+- Os dados são sensíveis: restrinja o acesso às contas autorizadas e use apenas HTTPS em produção.
+- O formulário de Eventos Adversos é externo e continua abrindo no Google Forms.
+- Nenhum deploy é executado por `npm run build`; o comando apenas gera os arquivos em `dist/`.
