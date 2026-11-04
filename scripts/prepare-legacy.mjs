@@ -18,6 +18,9 @@ const appIdsByFile = {
   "PROCESSO DE ENFERMAGEM.html": "processo",
   "SAE ENFERMAGEM.html": "sae",
 };
+const securityMeta =
+  '<meta name="referrer" content="no-referrer">\n' +
+  '<meta http-equiv="Content-Security-Policy" content="default-src \'self\'; base-uri \'self\'; object-src \'none\'; script-src \'self\' \'unsafe-inline\'; style-src \'self\' \'unsafe-inline\'; img-src \'self\' data:; font-src \'self\' data:; connect-src \'self\' https://ohycjthnenxigriputzm.supabase.co wss://ohycjthnenxigriputzm.supabase.co; frame-src \'self\'; form-action \'self\'; upgrade-insecure-requests">';
 
 await mkdir(targetDirectory, { recursive: true });
 await copyFile(
@@ -43,7 +46,10 @@ for (const file of legacyFiles) {
       /<\/head>/i,
       `${sharedStylesheets}\n</head>`,
     );
-    const updatedHtml = withStyles.replace(/<head([^>]*)>/i, `$&\n${script}`);
+    const updatedHtml = withStyles.replace(
+      /<head([^>]*)>/i,
+      `$&\n${securityMeta}\n${script}`,
+    );
 
     if (updatedHtml === html || updatedHtml === withStyles) {
       throw new Error(`Could not inject shared styles or storage bridge into ${file}`);

@@ -42,9 +42,10 @@ create trigger refresh_patient_history_expiration
   execute function public.refresh_patient_history_expiration();
 
 alter table public.historico_pacientes enable row level security;
+alter table public.historico_pacientes force row level security;
 revoke all on table public.historico_pacientes from anon, public;
-grant select, insert, update, delete
-  on table public.historico_pacientes to authenticated;
+revoke all on table public.historico_pacientes from authenticated;
+grant select, insert, update on table public.historico_pacientes to authenticated;
 
 drop policy if exists "authorized users can read patient history"
   on public.historico_pacientes;
@@ -57,7 +58,7 @@ create policy "authorized users can read patient history"
     and exists (
       select 1
       from public.upa_authorized_users
-      where user_id = auth.uid() and enabled
+      where user_id = (select auth.uid()) and enabled
     )
   );
 
@@ -68,11 +69,11 @@ create policy "authorized users can insert patient history"
   for insert
   to authenticated
   with check (
-    updated_by = auth.uid()
+    updated_by = (select auth.uid())
     and exists (
       select 1
       from public.upa_authorized_users
-      where user_id = auth.uid() and enabled
+      where user_id = (select auth.uid()) and enabled
     )
   );
 
@@ -86,31 +87,20 @@ create policy "authorized users can update patient history"
     exists (
       select 1
       from public.upa_authorized_users
-      where user_id = auth.uid() and enabled
+      where user_id = (select auth.uid()) and enabled
     )
   )
   with check (
-    updated_by = auth.uid()
+    updated_by = (select auth.uid())
     and exists (
       select 1
       from public.upa_authorized_users
-      where user_id = auth.uid() and enabled
+      where user_id = (select auth.uid()) and enabled
     )
   );
 
 drop policy if exists "authorized users can delete patient history"
   on public.historico_pacientes;
-create policy "authorized users can delete patient history"
-  on public.historico_pacientes
-  for delete
-  to authenticated
-  using (
-    exists (
-      select 1
-      from public.upa_authorized_users
-      where user_id = auth.uid() and enabled
-    )
-  );
 
 select cron.unschedule(jobid)
 from cron.job

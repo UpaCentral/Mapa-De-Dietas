@@ -14,7 +14,11 @@ import {
   loadSystemState,
   saveLoadedSystemState,
 } from "./supabase-storage";
-import { supabase, supabaseConfigured } from "./supabase";
+import {
+  clearPersistedSupabaseSession,
+  supabase,
+  supabaseConfigured,
+} from "./supabase";
 import "./design-tokens.css";
 import "./portal.css";
 import "./styles.css";
@@ -413,13 +417,6 @@ function LegacyApp({ app, session }) {
       if (message.type === "upa-patient-history-list") {
         try {
           const now = new Date().toISOString();
-          const { error: deleteError } = await supabase
-            .from("historico_pacientes")
-            .delete()
-            .eq("system_id", app.id)
-            .lte("expires_at", now);
-          if (deleteError) throw deleteError;
-
           const { data, error } = await supabase
             .from("historico_pacientes")
             .select(
@@ -472,13 +469,6 @@ function LegacyApp({ app, session }) {
       }
 
       try {
-        const { error: deleteError } = await supabase
-          .from("historico_pacientes")
-          .delete()
-          .eq("system_id", app.id)
-          .lte("expires_at", new Date().toISOString());
-        if (deleteError) throw deleteError;
-
         const { error } = await supabase.from("historico_pacientes").upsert(
           {
             system_id: app.id,
@@ -734,6 +724,9 @@ function App() {
     if (!supabaseConfigured || !supabase) return undefined;
 
     let active = true;
+    clearPersistedSupabaseSession();
+    clearSystemStorageCache();
+
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, nextSession) => {
@@ -744,25 +737,21 @@ function App() {
       }
     });
 
-    supabase.auth
-      .getSession()
-      .then(({ data, error }) => {
-        if (!active) return;
-        if (error) setAuthError(error.message);
-        setSession(data.session);
-        setAuthLoading(false);
-      })
-      .catch((error) => {
-        if (active) {
-          setAuthError(error.message || "Não foi possível validar o login.");
-          setAuthLoading(false);
-        }
-      });
+    setSession(null);
+    setAuthLoading(false);
 
     return () => {
       active = false;
       subscription.unsubscribe();
     };
+  }, []);
+
+  React.useEffect(() => {
+    const reloadRestoredPage = (event) => {
+      if (event.persisted) window.location.reload();
+    };
+    window.addEventListener("pageshow", reloadRestoredPage);
+    return () => window.removeEventListener("pageshow", reloadRestoredPage);
   }, []);
 
   async function signIn(email, password) {

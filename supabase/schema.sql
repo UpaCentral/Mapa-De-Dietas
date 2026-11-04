@@ -4,6 +4,7 @@ create table if not exists public.upa_authorized_users (
 );
 
 alter table public.upa_authorized_users enable row level security;
+alter table public.upa_authorized_users force row level security;
 revoke all on table public.upa_authorized_users from anon, public;
 grant select on table public.upa_authorized_users to authenticated;
 
@@ -12,7 +13,7 @@ create policy "users can verify their own access"
   on public.upa_authorized_users
   for select
   to authenticated
-  using (user_id = auth.uid() and enabled);
+  using (user_id = (select auth.uid()) and enabled);
 
 create table if not exists public.cabecalho_paciente (
   id text primary key default 'shared' check (id = 'shared'),
@@ -54,24 +55,25 @@ begin
   ]
   loop
     execute format('alter table public.%I enable row level security', table_name);
+    execute format('alter table public.%I force row level security', table_name);
     execute format('revoke all on table public.%I from anon, public', table_name);
     execute format('grant select, insert, update on table public.%I to authenticated', table_name);
 
     execute format('drop policy if exists "authenticated users can read" on public.%I', table_name);
     execute format(
-      'create policy "authorized users can read" on public.%I for select to authenticated using (exists (select 1 from public.upa_authorized_users where user_id = auth.uid() and enabled))',
+      'create policy "authorized users can read" on public.%I for select to authenticated using (exists (select 1 from public.upa_authorized_users where user_id = (select auth.uid()) and enabled))',
       table_name
     );
 
     execute format('drop policy if exists "authorized users can insert" on public.%I', table_name);
     execute format(
-      'create policy "authorized users can insert" on public.%I for insert to authenticated with check (auth.uid() = updated_by and exists (select 1 from public.upa_authorized_users where user_id = auth.uid() and enabled))',
+      'create policy "authorized users can insert" on public.%I for insert to authenticated with check ((select auth.uid()) = updated_by and exists (select 1 from public.upa_authorized_users where user_id = (select auth.uid()) and enabled))',
       table_name
     );
 
     execute format('drop policy if exists "authorized users can update" on public.%I', table_name);
     execute format(
-      'create policy "authorized users can update" on public.%I for update to authenticated using (exists (select 1 from public.upa_authorized_users where user_id = auth.uid() and enabled)) with check (auth.uid() = updated_by and exists (select 1 from public.upa_authorized_users where user_id = auth.uid() and enabled))',
+      'create policy "authorized users can update" on public.%I for update to authenticated using (exists (select 1 from public.upa_authorized_users where user_id = (select auth.uid()) and enabled)) with check ((select auth.uid()) = updated_by and exists (select 1 from public.upa_authorized_users where user_id = (select auth.uid()) and enabled))',
       table_name
     );
   end loop;
