@@ -165,7 +165,7 @@
 
   html[data-clinical-ui] .upa-history-dialog {
     display: grid;
-    width: min(900px, 100%);
+    width: min(1100px, 100%);
     max-height: min(82vh, 760px);
     grid-template-rows: auto auto auto minmax(0, 1fr);
     overflow: hidden;
@@ -210,7 +210,7 @@
 
   html[data-clinical-ui] .upa-history-filters {
     display: grid;
-    grid-template-columns: minmax(0, 2fr) repeat(2, minmax(140px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
     gap: 10px;
     padding: 14px 22px 4px;
   }
@@ -224,7 +224,12 @@
     font-weight: 700;
   }
 
-  html[data-clinical-ui] .upa-history-filters input {
+  html[data-clinical-ui] .upa-history-search {
+    grid-column: span 2;
+  }
+
+  html[data-clinical-ui] .upa-history-filters input,
+  html[data-clinical-ui] .upa-history-filters select {
     width: 100%;
     min-width: 0;
     min-height: 42px;
@@ -261,35 +266,38 @@
   }
 
   html[data-clinical-ui] .upa-history-list {
-    display: grid;
-    align-content: start;
-    gap: 10px;
     overflow: auto;
     padding: 14px 22px 22px;
   }
 
-  html[data-clinical-ui] .upa-history-card {
-    display: flex;
-    align-items: stretch;
-    flex-direction: column;
-    gap: 16px;
-    padding: 14px;
-    border: 1px solid var(--color-border, #d7dfeb);
-    border-radius: var(--radius-control, 10px);
-    background: var(--color-surface, #fff);
+  html[data-clinical-ui] .upa-history-table {
+    width: 100%;
+    min-width: 760px;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 13px;
+    text-align: left;
   }
 
-  html[data-clinical-ui] .upa-history-card h3 {
-    margin: 0;
+  html[data-clinical-ui] .upa-history-table th,
+  html[data-clinical-ui] .upa-history-table td {
+    padding: 12px 10px;
+    border-bottom: 1px solid var(--color-border, #d7dfeb);
+    vertical-align: middle;
+  }
+
+  html[data-clinical-ui] .upa-history-table th {
+    position: sticky;
+    top: 0;
+    background: var(--color-brand-50, #eff6ff);
+    color: var(--color-brand-700, #1e40af);
+    font-weight: 800;
+    white-space: nowrap;
+  }
+
+  html[data-clinical-ui] .upa-history-table td:first-child {
     color: var(--color-ink, #172033);
-    font-size: 15px;
-  }
-
-  html[data-clinical-ui] .upa-history-card p {
-    margin: 5px 0 0;
-    color: var(--color-muted, #5b677a);
-    font-size: 12px;
-    line-height: 1.5;
+    font-weight: 700;
   }
 
   html[data-clinical-ui] .upa-history-toast {
@@ -640,6 +648,10 @@
     max-height: 90vh;
   }
 
+  html[data-clinical-ui] .upa-history-search {
+    grid-column: auto;
+  }
+
   html[data-clinical-ui] .upa-history-filters {
     grid-template-columns: minmax(0, 1fr);
     padding: 12px 14px 2px;
@@ -661,6 +673,10 @@
     padding: 12px 14px 16px;
   }
 
+  html[data-clinical-ui] .upa-history-table {
+    min-width: 760px;
+  }
+
   html[data-clinical-ui] .topbar {
     flex-wrap: wrap;
   }
@@ -677,7 +693,4 @@
     max-width: none;
   }
 
-  html[data-clinical-ui] .upa-history-card {
-    gap: 10px;
-  }
 }

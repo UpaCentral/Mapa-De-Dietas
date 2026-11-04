@@ -276,9 +276,11 @@
       '<header class="upa-history-header"><div><h2 id="upa-history-title">Histórico de pacientes</h2><p>Registros disponíveis por 7 dias após a última atualização.</p></div>' +
       '<button class="upa-history-close" type="button" aria-label="Fechar histórico">×</button></header>' +
       '<div class="upa-history-filters" role="search" aria-label="Filtros do histórico">' +
-      '<label class="upa-history-search">Buscar paciente, prontuário, setor ou leito<input class="upa-history-query" type="search" placeholder="Digite para buscar" autocomplete="off"></label>' +
+      '<label class="upa-history-search">Buscar paciente ou prontuário<input class="upa-history-query" type="search" placeholder="Digite para buscar" autocomplete="off"></label>' +
       '<label>Atualizado a partir de<input class="upa-history-from" type="date"></label>' +
       '<label>Atualizado até<input class="upa-history-to" type="date"></label>' +
+      '<label>Setor<select class="upa-history-sector"><option value="">Todos os setores</option></select></label>' +
+      '<label>Leito<select class="upa-history-bed"><option value="">Todos os leitos</option></select></label>' +
       '<button class="upa-history-print-all" type="button" disabled>Imprimir histórico</button></div>' +
       '<p class="upa-history-message" role="status" aria-live="polite"></p>' +
       '<div class="upa-history-list"></div></section>';
@@ -302,6 +304,8 @@
     const searchInput = overlay.querySelector(".upa-history-query");
     const fromInput = overlay.querySelector(".upa-history-from");
     const toInput = overlay.querySelector(".upa-history-to");
+    const sectorInput = overlay.querySelector(".upa-history-sector");
+    const bedInput = overlay.querySelector(".upa-history-bed");
     const printAllButton = overlay.querySelector(".upa-history-print-all");
     const pending = new Map();
     let requestCounter = 0;
@@ -327,11 +331,61 @@
       });
     }
 
+    function normalizeHistoryValue(value) {
+      return String(value || "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .trim()
+        .toLocaleLowerCase("pt-BR");
+    }
+
+    function historyLocation(record, aliases) {
+      const snapshot = record.snapshot || {};
+      const fields = snapshot.fields || snapshot;
+      const labels = snapshot.labels || {};
+      const aliasSet = new Set(aliases.map(normalizeHistoryValue));
+      const entry = Object.entries(fields).find(([key]) =>
+        aliasSet.has(normalizeHistoryValue(labels[key] || key)),
+      );
+      const value = entry?.[1];
+
+      if (Array.isArray(value)) return value.filter(Boolean).join(", ");
+      if (value && typeof value === "object") return JSON.stringify(value);
+      return value == null ? "" : String(value).trim();
+    }
+
+    function updateSelectOptions(select, values, placeholder) {
+      const currentValue = select.value;
+      const options = [...new Set(values.filter(Boolean))].sort((a, b) =>
+        a.localeCompare(b, "pt-BR", { numeric: true, sensitivity: "base" }),
+      );
+      select.replaceChildren(new Option(placeholder, ""));
+      options.forEach((value) => select.add(new Option(value, value)));
+      if (options.includes(currentValue)) select.value = currentValue;
+    }
+
     function renderHistory() {
       list.replaceChildren();
-      const query = searchInput.value.trim().toLocaleLowerCase("pt-BR");
+      const query = normalizeHistoryValue(searchInput.value);
       const from = fromInput.value;
       const to = toInput.value;
+      const sector = sectorInput.value;
+      const bed = bedInput.value;
+
+      updateSelectOptions(
+        sectorInput,
+        historyRecords.map((record) =>
+          historyLocation(record, ["setor", "área", "area"]),
+        ),
+        "Todos os setores",
+      );
+      updateSelectOptions(
+        bedInput,
+        historyRecords.map((record) =>
+          historyLocation(record, ["leito", "bed"]),
+        ),
+        "Todos os leitos",
+      );
 
       if (from && to && from > to) {
         filteredRecords = [];
@@ -343,25 +397,31 @@
 
       filteredRecords = historyRecords.filter((record) => {
         const fields = record.snapshot?.fields || record.snapshot || {};
-        const searchableValues = Object.values(fields)
-          .flat(Infinity)
-          .filter((value) => value !== null && value !== undefined)
-          .map((value) =>
-            typeof value === "object" ? JSON.stringify(value) : String(value),
-          );
-        const searchText = [
+        const searchableValues = Object.entries(fields).flatMap(([key, value]) => {
+          const label = record.snapshot?.labels?.[key] || key;
+          const values = Array.isArray(value) ? value : [value];
+          return values
+            .filter((item) => item !== null && item !== undefined)
+            .map((item) =>
+              typeof item === "object" ? JSON.stringify(item) : String(item),
+            )
+            .concat(label);
+        });
+        const searchText = normalizeHistoryValue([
           record.patient_name,
           record.record_number,
           ...searchableValues,
-        ]
-          .join(" ")
-          .toLocaleLowerCase("pt-BR");
+        ].join(" "));
         const updatedDate = record.updated_at.slice(0, 10);
+        const recordSector = historyLocation(record, ["setor", "área", "area"]);
+        const recordBed = historyLocation(record, ["leito", "bed"]);
 
         return (
           (!query || searchText.includes(query)) &&
           (!from || updatedDate >= from) &&
-          (!to || updatedDate <= to)
+          (!to || updatedDate <= to) &&
+          (!sector || recordSector === sector) &&
+          (!bed || recordBed === bed)
         );
       });
 
@@ -376,30 +436,31 @@
       }
 
       message.textContent = `${filteredRecords.length} de ${historyRecords.length} registro(s) encontrado(s).`;
+      const table = document.createElement("table");
+      table.className = "upa-history-table";
+      table.setAttribute("aria-label", `Histórico de ${systemNames[systemId]}`);
+      table.innerHTML =
+        "<thead><tr><th>Paciente</th><th>Prontuário</th><th>Setor</th><th>Leito</th><th>Atualizado</th><th>Expira</th></tr></thead>";
+      const tbody = document.createElement("tbody");
       filteredRecords.forEach((record) => {
-        const card = document.createElement("article");
-        card.className = "upa-history-card";
-
-        const details = document.createElement("div");
-        details.className = "upa-history-card-details";
-        const name = document.createElement("h3");
-        name.textContent = record.patient_name;
-        const meta = document.createElement("p");
-        const updatedAt = new Date(record.updated_at).toLocaleString("pt-BR");
-        const expiresAt = new Date(record.expires_at).toLocaleString("pt-BR");
-        meta.textContent = [
-          systemNames[record.system_id],
-          record.record_number ? `Prontuário: ${record.record_number}` : "",
-          `Atualizado: ${updatedAt}`,
-          `Expira: ${expiresAt}`,
-        ]
-          .filter(Boolean)
-          .join(" · ");
-        details.append(name, meta);
-
-        card.append(details);
-        list.append(card);
+        const row = document.createElement("tr");
+        const cells = [
+          record.patient_name,
+          record.record_number || "—",
+          historyLocation(record, ["setor", "área", "area"]) || "—",
+          historyLocation(record, ["leito", "bed"]) || "—",
+          new Date(record.updated_at).toLocaleString("pt-BR"),
+          new Date(record.expires_at).toLocaleString("pt-BR"),
+        ];
+        cells.forEach((value) => {
+          const cell = document.createElement("td");
+          cell.textContent = value;
+          row.append(cell);
+        });
+        tbody.append(row);
       });
+      table.append(tbody);
+      list.append(table);
     }
 
     function printHistoryRecords(records) {
@@ -464,7 +525,7 @@
       }
     }
 
-    [searchInput, fromInput, toInput].forEach((input) => {
+    [searchInput, fromInput, toInput, sectorInput, bedInput].forEach((input) => {
       input.addEventListener("input", renderHistory);
       input.addEventListener("change", renderHistory);
     });
