@@ -275,6 +275,11 @@
       '<section class="upa-history-dialog" role="dialog" aria-modal="true" aria-labelledby="upa-history-title">' +
       '<header class="upa-history-header"><div><h2 id="upa-history-title">Histórico de pacientes</h2><p>Registros disponíveis por 7 dias após a última atualização.</p></div>' +
       '<button class="upa-history-close" type="button" aria-label="Fechar histórico">×</button></header>' +
+      '<div class="upa-history-filters" role="search" aria-label="Filtros do histórico">' +
+      '<label class="upa-history-search">Buscar paciente, prontuário, setor ou leito<input class="upa-history-query" type="search" placeholder="Digite para buscar" autocomplete="off"></label>' +
+      '<label>Atualizado a partir de<input class="upa-history-from" type="date"></label>' +
+      '<label>Atualizado até<input class="upa-history-to" type="date"></label>' +
+      '<button class="upa-history-print-all" type="button" disabled>Imprimir histórico</button></div>' +
       '<p class="upa-history-message" role="status" aria-live="polite"></p>' +
       '<div class="upa-history-list"></div></section>';
 
@@ -294,9 +299,15 @@
     const message = overlay.querySelector(".upa-history-message");
     const list = overlay.querySelector(".upa-history-list");
     const closeButton = overlay.querySelector(".upa-history-close");
+    const searchInput = overlay.querySelector(".upa-history-query");
+    const fromInput = overlay.querySelector(".upa-history-from");
+    const toInput = overlay.querySelector(".upa-history-to");
+    const printAllButton = overlay.querySelector(".upa-history-print-all");
     const pending = new Map();
     let requestCounter = 0;
     let toastTimer;
+    let historyRecords = [];
+    let filteredRecords = [];
 
     function showToast(text, isError = false) {
       toast.textContent = text;
@@ -316,15 +327,56 @@
       });
     }
 
-    function renderHistory(records) {
+    function renderHistory() {
       list.replaceChildren();
-      if (records.length === 0) {
-        message.textContent = "Nenhum registro nos últimos 7 dias.";
+      const query = searchInput.value.trim().toLocaleLowerCase("pt-BR");
+      const from = fromInput.value;
+      const to = toInput.value;
+
+      if (from && to && from > to) {
+        filteredRecords = [];
+        printAllButton.disabled = true;
+        printAllButton.textContent = "Imprimir histórico";
+        message.textContent = "A data inicial deve ser anterior à data final.";
         return;
       }
 
-      message.textContent = `${records.length} registro(s) disponível(is).`;
-      records.forEach((record) => {
+      filteredRecords = historyRecords.filter((record) => {
+        const fields = record.snapshot?.fields || record.snapshot || {};
+        const searchableValues = Object.values(fields)
+          .flat(Infinity)
+          .filter((value) => value !== null && value !== undefined)
+          .map((value) =>
+            typeof value === "object" ? JSON.stringify(value) : String(value),
+          );
+        const searchText = [
+          record.patient_name,
+          record.record_number,
+          ...searchableValues,
+        ]
+          .join(" ")
+          .toLocaleLowerCase("pt-BR");
+        const updatedDate = record.updated_at.slice(0, 10);
+
+        return (
+          (!query || searchText.includes(query)) &&
+          (!from || updatedDate >= from) &&
+          (!to || updatedDate <= to)
+        );
+      });
+
+      printAllButton.disabled = filteredRecords.length === 0;
+      printAllButton.textContent = `Imprimir histórico (${filteredRecords.length})`;
+
+      if (filteredRecords.length === 0) {
+        message.textContent = historyRecords.length
+          ? "Nenhum registro corresponde aos filtros."
+          : "Nenhum registro nos últimos 7 dias.";
+        return;
+      }
+
+      message.textContent = `${filteredRecords.length} de ${historyRecords.length} registro(s) encontrado(s).`;
+      filteredRecords.forEach((record) => {
         const card = document.createElement("article");
         card.className = "upa-history-card";
 
@@ -345,26 +397,18 @@
           .join(" · ");
         details.append(name, meta);
 
-        const printButton = document.createElement("button");
-        printButton.type = "button";
-        printButton.className = "upa-history-print";
-        printButton.textContent = "Imprimir";
-        printButton.addEventListener("click", () => printHistoryRecord(record));
-        card.append(details, printButton);
+        card.append(details);
         list.append(card);
       });
     }
 
-    function printHistoryRecord(record) {
+    function printHistoryRecords(records) {
       const popup = window.open("", "_blank");
       if (!popup) {
-        showToast("Permita janelas pop-up para imprimir o registro.", true);
+        showToast("Permita janelas pop-up para imprimir o histórico.", true);
         return;
       }
 
-      const snapshot = record.snapshot || {};
-      const fields = snapshot.fields || snapshot;
-      const labels = snapshot.labels || {};
       const escapeHtml = (value) =>
         String(value).replace(/[&<>"']/g, (character) => {
           const entities = {
@@ -376,25 +420,32 @@
           };
           return entities[character];
         });
-      const rows = Object.entries(fields)
-        .filter(([, value]) => value !== "" && value !== null && value !== undefined)
-        .map(([key, value]) => {
-          const displayValue =
-            typeof value === "boolean"
-              ? value
-                ? "Sim"
-                : "Não"
-              : Array.isArray(value)
-                ? value.join(", ")
-                : typeof value === "object"
-                  ? JSON.stringify(value)
-                  : value;
-          return `<tr><th>${escapeHtml(labels[key] || key)}</th><td>${escapeHtml(displayValue)}</td></tr>`;
-        })
-        .join("");
+      const recordSections = records.map((record) => {
+        const snapshot = record.snapshot || {};
+        const fields = snapshot.fields || snapshot;
+        const labels = snapshot.labels || {};
+        const rows = Object.entries(fields)
+          .filter(([, value]) => value !== "" && value !== null && value !== undefined)
+          .map(([key, value]) => {
+            const displayValue =
+              typeof value === "boolean"
+                ? value
+                  ? "Sim"
+                  : "Não"
+                : Array.isArray(value)
+                  ? value.join(", ")
+                  : typeof value === "object"
+                    ? JSON.stringify(value)
+                    : value;
+            return `<tr><th>${escapeHtml(labels[key] || key)}</th><td>${escapeHtml(displayValue)}</td></tr>`;
+          })
+          .join("");
+
+        return `<section class="record"><h2>${escapeHtml(systemNames[record.system_id] || "Histórico de pacientes")} — ${escapeHtml(record.patient_name)}</h2><p><strong>Prontuário:</strong> ${escapeHtml(record.record_number || "Não informado")}<br><strong>Atualizado:</strong> ${escapeHtml(new Date(record.updated_at).toLocaleString("pt-BR"))}<br><strong>Expira:</strong> ${escapeHtml(new Date(record.expires_at).toLocaleString("pt-BR"))}</p><table><tbody>${rows}</tbody></table></section>`;
+      }).join("");
 
       popup.document.write(
-        `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Histórico - ${escapeHtml(record.patient_name)}</title><style>body{font:14px Arial,sans-serif;color:#172033;margin:28px}h1{font-size:22px;color:#1e40af}p{color:#5b677a}.actions{margin:18px 0}button{border:0;border-radius:8px;padding:10px 16px;background:#1d4ed8;color:#fff;font-weight:700;cursor:pointer}table{width:100%;border-collapse:collapse}th,td{border:1px solid #d7dfeb;padding:8px;text-align:left;vertical-align:top}th{width:30%;background:#f3f6fa}@media print{body{margin:10mm}.actions{display:none}tr{break-inside:avoid}}</style></head><body><h1>${escapeHtml(systemNames[record.system_id] || "Histórico de pacientes")}</h1><p><strong>Paciente:</strong> ${escapeHtml(record.patient_name)}<br><strong>Prontuário:</strong> ${escapeHtml(record.record_number || "Não informado")}<br><strong>Atualizado:</strong> ${escapeHtml(new Date(record.updated_at).toLocaleString("pt-BR"))}</p><div class="actions"><button type="button" onclick="window.print()">Imprimir ficha</button></div><table><tbody>${rows}</tbody></table></body></html>`,
+        `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Histórico completo de pacientes</title><style>body{font:14px Arial,sans-serif;color:#172033;margin:28px}h1{font-size:24px;color:#1e40af}.summary{color:#5b677a}.actions{margin:18px 0}.actions button{border:0;border-radius:8px;padding:10px 16px;background:#1d4ed8;color:#fff;font-weight:700;cursor:pointer}.record{margin-top:28px}.record+ .record{break-before:page}h2{font-size:18px;color:#1e40af}p{color:#5b677a;line-height:1.6}table{width:100%;border-collapse:collapse}th,td{border:1px solid #d7dfeb;padding:8px;text-align:left;vertical-align:top}th{width:30%;background:#f3f6fa}tr{break-inside:avoid}@media print{body{margin:10mm}.actions{display:none}}</style></head><body><h1>Histórico completo de pacientes</h1><p class="summary">${records.length} registro(s) incluído(s), conforme os filtros aplicados.</p><div class="actions"><button type="button" onclick="window.print()">Imprimir histórico</button></div>${recordSections}</body></html>`,
       );
       popup.document.close();
       popup.focus();
@@ -406,12 +457,20 @@
       list.replaceChildren();
       closeButton.focus();
       try {
-        const records = await requestHistory();
-        renderHistory(records);
+        historyRecords = await requestHistory();
+        renderHistory();
       } catch (error) {
         message.textContent = error.message || "Não foi possível carregar o histórico.";
       }
     }
+
+    [searchInput, fromInput, toInput].forEach((input) => {
+      input.addEventListener("input", renderHistory);
+      input.addEventListener("change", renderHistory);
+    });
+    printAllButton.addEventListener("click", () => {
+      if (filteredRecords.length > 0) printHistoryRecords(filteredRecords);
+    });
 
     trigger.addEventListener("click", openHistory);
     closeButton.addEventListener("click", () => {

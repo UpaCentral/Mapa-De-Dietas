@@ -417,21 +417,36 @@ function LegacyApp({ app, session }) {
       if (message.type === "upa-patient-history-list") {
         try {
           const now = new Date().toISOString();
-          const { data, error } = await supabase
-            .from("historico_pacientes")
-            .select(
-              "id, system_id, patient_key, patient_name, record_number, snapshot, created_at, updated_at, expires_at",
-            )
-            .eq("system_id", app.id)
-            .gt("expires_at", now)
-            .order("updated_at", { ascending: false })
-            .limit(100);
-          if (error) throw error;
+          const historyRecords = [];
+          const pageSize = 500;
+          let offset = 0;
+          let totalCount = 0;
+
+          do {
+            const { data, error, count } = await supabase
+              .from("historico_pacientes")
+              .select(
+                "id, system_id, patient_key, patient_name, record_number, snapshot, created_at, updated_at, expires_at",
+                { count: "exact" },
+              )
+              .eq("system_id", app.id)
+              .gt("expires_at", now)
+              .order("updated_at", { ascending: false })
+              .order("patient_key", { ascending: true })
+              .range(offset, offset + pageSize - 1);
+            if (error) throw error;
+
+            const page = data || [];
+            if (page.length === 0) break;
+            historyRecords.push(...page);
+            totalCount = count ?? offset + page.length;
+            offset += page.length;
+          } while (offset < totalCount && offset > 0);
 
           replyToClinicalApp({
             type: "upa-patient-history-response",
             requestId: message.requestId,
-            records: data || [],
+            records: historyRecords,
           });
         } catch (error) {
           replyToClinicalApp({
