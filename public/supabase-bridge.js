@@ -481,35 +481,26 @@
           };
           return entities[character];
         });
-      const recordSections = records.map((record) => {
-        const snapshot = record.snapshot || {};
-        const fields = snapshot.fields || snapshot;
-        const labels = snapshot.labels || {};
-        const rows = Object.entries(fields)
-          .filter(([, value]) => value !== "" && value !== null && value !== undefined)
-          .map(([key, value]) => {
-            const displayValue =
-              typeof value === "boolean"
-                ? value
-                  ? "Sim"
-                  : "Não"
-                : Array.isArray(value)
-                  ? value.join(", ")
-                  : typeof value === "object"
-                    ? JSON.stringify(value)
-                    : value;
-            return `<tr><th>${escapeHtml(labels[key] || key)}</th><td>${escapeHtml(displayValue)}</td></tr>`;
-          })
-          .join("");
-
-        return `<section class="record"><h2>${escapeHtml(systemNames[record.system_id] || "Histórico de pacientes")} — ${escapeHtml(record.patient_name)}</h2><p><strong>Prontuário:</strong> ${escapeHtml(record.record_number || "Não informado")}<br><strong>Atualizado:</strong> ${escapeHtml(new Date(record.updated_at).toLocaleString("pt-BR"))}<br><strong>Expira:</strong> ${escapeHtml(new Date(record.expires_at).toLocaleString("pt-BR"))}</p><table><tbody>${rows}</tbody></table></section>`;
-      }).join("");
+      const rows = records
+        .map((record) => {
+          const cells = [
+            record.patient_name,
+            record.record_number || "—",
+            historyLocation(record, ["setor", "área", "area"]) || "—",
+            historyLocation(record, ["leito", "bed"]) || "—",
+            new Date(record.updated_at).toLocaleString("pt-BR"),
+            new Date(record.expires_at).toLocaleString("pt-BR"),
+          ];
+          return `<tr>${cells.map((value) => `<td>${escapeHtml(value)}</td>`).join("")}</tr>`;
+        })
+        .join("");
 
       popup.document.write(
-        `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Histórico completo de pacientes</title><style>body{font:14px Arial,sans-serif;color:#172033;margin:28px}h1{font-size:24px;color:#1e40af}.summary{color:#5b677a}.actions{margin:18px 0}.actions button{border:0;border-radius:8px;padding:10px 16px;background:#1d4ed8;color:#fff;font-weight:700;cursor:pointer}.record{margin-top:28px}.record+ .record{break-before:page}h2{font-size:18px;color:#1e40af}p{color:#5b677a;line-height:1.6}table{width:100%;border-collapse:collapse}th,td{border:1px solid #d7dfeb;padding:8px;text-align:left;vertical-align:top}th{width:30%;background:#f3f6fa}tr{break-inside:avoid}@media print{body{margin:10mm}.actions{display:none}}</style></head><body><h1>Histórico completo de pacientes</h1><p class="summary">${records.length} registro(s) incluído(s), conforme os filtros aplicados.</p><div class="actions"><button type="button" onclick="window.print()">Imprimir histórico</button></div>${recordSections}</body></html>`,
+        `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Histórico de ${escapeHtml(systemNames[systemId])}</title><style>*{box-sizing:border-box}body{margin:24px;font:12px Arial,sans-serif;color:#172033}h1{margin:0 0 6px;color:#1e40af;font-size:20px}.summary{margin:0 0 16px;color:#5b677a}table{width:100%;border-collapse:collapse;table-layout:fixed}th,td{padding:8px;border:1px solid #d7dfeb;text-align:left;vertical-align:top;overflow-wrap:anywhere}thead{display:table-header-group}th{background:#286b9f;color:#fff;font-size:11px}tbody tr:nth-child(even){background:#f1f3f5}tr{break-inside:avoid} @page{size:landscape;margin:10mm}@media print{body{margin:0}}</style></head><body><h1>Histórico — ${escapeHtml(systemNames[systemId])}</h1><p class="summary">${records.length} registro(s), conforme os filtros aplicados.</p><table><thead><tr><th>Paciente</th><th>Prontuário</th><th>Setor</th><th>Leito</th><th>Atualizado</th><th>Expira</th></tr></thead><tbody>${rows}</tbody></table></body></html>`,
       );
       popup.document.close();
       popup.focus();
+      popup.print();
     }
 
     async function openHistory() {
