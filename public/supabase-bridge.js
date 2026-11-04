@@ -284,7 +284,12 @@
     toast.setAttribute("role", "status");
     toast.setAttribute("aria-live", "polite");
 
-    document.body.append(trigger, overlay, toast);
+    const headerActions =
+      document.querySelector(".bar .actions") ||
+      document.querySelector(".topbar") ||
+      document.body;
+    headerActions.append(trigger);
+    document.body.append(overlay, toast);
 
     const message = overlay.querySelector(".upa-history-message");
     const list = overlay.querySelector(".upa-history-list");

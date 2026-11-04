@@ -116,19 +116,36 @@
   }
 
   html[data-clinical-ui] .upa-history-trigger {
-    position: fixed;
-    left: 16px;
-    bottom: 16px;
-    z-index: 20;
+    position: static;
+    flex: 0 0 auto;
+    width: auto;
     min-height: 44px;
+    margin: 0;
     border: 0;
-    border-radius: 999px;
-    padding: 10px 16px;
+    border-radius: 8px;
+    padding: 10px 13px;
     background: var(--color-brand-600, #1d4ed8);
     color: #fff;
     font-weight: 800;
-    box-shadow: var(--shadow-float, 0 14px 36px rgb(15 35 65 / 14%));
+    box-shadow: none;
     cursor: pointer;
+    white-space: nowrap;
+  }
+
+  html[data-clinical-ui] .bar .actions .upa-history-trigger {
+    background: #0921f8;
+    color: #fff;
+  }
+
+  html[data-clinical-ui] .topbar .upa-history-trigger {
+    margin-left: auto;
+    border: 1px solid rgb(255 255 255 / 35%);
+    background: #fff;
+    color: #1e40af;
+  }
+
+  html[data-clinical-ui] .upa-history-trigger:hover {
+    filter: brightness(0.94);
   }
 
   html[data-clinical-ui] .upa-history-overlay {
@@ -580,14 +597,19 @@
 }
 
 @media screen and (max-width: 600px) {
-  html[data-clinical-ui] .upa-history-trigger {
-    left: 12px;
-    bottom: 12px;
+  html[data-clinical-ui] .topbar {
+    flex-wrap: wrap;
+  }
+
+  html[data-clinical-ui] .topbar .upa-history-trigger {
+    flex: 1 0 100%;
+    width: 100%;
   }
 
   html[data-clinical-ui] .upa-history-toast {
+    right: 12px;
     left: 12px;
-    bottom: 66px;
+    bottom: 12px;
     max-width: none;
   }
 
