@@ -20,6 +20,10 @@ const appIdsByFile = {
 };
 
 await mkdir(targetDirectory, { recursive: true });
+await copyFile(
+  path.join(projectRoot, "src", "design-tokens.css"),
+  path.join(targetDirectory, "design-tokens.css"),
+);
 
 for (const file of legacyFiles) {
   const sourcePath = path.join(sourceDirectory, file);
@@ -30,11 +34,19 @@ for (const file of legacyFiles) {
     if (!appId) throw new Error(`Missing system ID for ${file}`);
 
     const html = await readFile(sourcePath, "utf8");
+    const sharedStylesheets = [
+      '<link rel="stylesheet" href="design-tokens.css">',
+      '<link rel="stylesheet" href="../clinical-ui.css">',
+    ].join("\n");
     const script = `<script src="../supabase-bridge.js" data-app="${appId}"></script>`;
-    const updatedHtml = html.replace(/<head([^>]*)>/i, `$&\n${script}`);
+    const withStyles = html.replace(
+      /<\/head>/i,
+      `${sharedStylesheets}\n</head>`,
+    );
+    const updatedHtml = withStyles.replace(/<head([^>]*)>/i, `$&\n${script}`);
 
-    if (updatedHtml === html) {
-      throw new Error(`Could not inject the storage bridge into ${file}`);
+    if (updatedHtml === html || updatedHtml === withStyles) {
+      throw new Error(`Could not inject shared styles or storage bridge into ${file}`);
     }
 
     await writeFile(targetPath, updatedHtml, "utf8");

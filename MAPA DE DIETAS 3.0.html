@@ -120,7 +120,7 @@ tr.bloqueio{background:var(--danger)}
 </style>
 </head>
 <body>
-<div class="topbar">Dashboard - Mapa de Dietas</div>
+<div class="topbar"><img class="topbar-logo" src="../assets/fucs-logo.jpg" alt="Logo FUCS">Dashboard - Mapa de Dietas</div>
 <main class="app">
   <section class="panel form">
     <h2>Paciente</h2>
@@ -154,11 +154,11 @@ tr.bloqueio{background:var(--danger)}
     </div>
   </section>
   <section class="panel">
-    <div class="summary" id="resumo"></div>
+    <div class="summary" id="resumo" aria-live="polite" aria-label="Resumo do mapa de dietas"></div>
     <div class="toolbar">
-      <input id="busca" placeholder="Buscar por leito, nome, dieta, restricao ou alergia">
-      <select id="filtroSetor"><option value="">Escolha o setor</option></select>
-      <select id="filtroDieta"><option value="">Todas as dietas</option></select>
+      <input id="busca" aria-label="Buscar pacientes no mapa" placeholder="Buscar por leito, nome, dieta, restricao ou alergia">
+      <select id="filtroSetor" aria-label="Filtrar pacientes por setor"><option value="">Escolha o setor</option></select>
+      <select id="filtroDieta" aria-label="Filtrar pacientes por dieta"><option value="">Todas as dietas</option></select>
       <button class="secondary no-print" id="imprimirSetor">Imprimir setor</button>
       <button class="secondary no-print" id="imprimirTodos">Imprimir todos</button>
       <button class="ghost no-print" id="limparTudo">Limpar mapa</button>
@@ -181,7 +181,7 @@ tr.bloqueio{background:var(--danger)}
         <button class="ghost" id="fecharConfig">Fechar</button>
       </div>
     </div>
-    <div class="map" id="mapa"></div>
+    <div class="map" id="mapa" role="region" aria-label="Pacientes organizados por setor" aria-live="polite"></div>
   </section>
 </main>
 <script>

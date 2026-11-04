@@ -1,14 +1,21 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
-import { HashRouter, Link, Route, Routes, useLocation } from "react-router-dom";
+import {
+  HashRouter,
+  Link,
+  Route,
+  Routes,
+  useLocation,
+  useNavigate,
+} from "react-router-dom";
 import { QRCodeSVG } from "qrcode.react";
 import {
   clearSystemStorageCache,
-  getSystemStoragePrefix,
   loadSystemState,
   saveLoadedSystemState,
 } from "./supabase-storage";
 import { supabase, supabaseConfigured } from "./supabase";
+import "./design-tokens.css";
 import "./portal.css";
 import "./styles.css";
 
@@ -126,6 +133,7 @@ function useRevealAnimations(search) {
 
 function PreviewFrame({ file, title }) {
   const frameRef = React.useRef(null);
+  const [ready, setReady] = React.useState(false);
 
   React.useEffect(() => {
     const card = frameRef.current?.closest(".card");
@@ -143,12 +151,14 @@ function PreviewFrame({ file, title }) {
 
   return (
     <iframe
-      className="prev"
+      className={`prev${ready ? " prev-ready" : ""}`}
       ref={frameRef}
       src={`${baseUrl}legacy/${encodeURIComponent(file)}`}
       loading="lazy"
       tabIndex="-1"
       title={`Prévia de ${title}`}
+      onLoad={() => setReady(true)}
+      aria-hidden="true"
     />
   );
 }
@@ -198,6 +208,9 @@ function HomePage({ onSignOut }) {
 
   return (
     <>
+      <a className="skip-link" href="#sistemas">
+        Ir para os sistemas
+      </a>
       <div className="aura" aria-hidden="true">
         <span />
         <span />
@@ -243,7 +256,7 @@ function HomePage({ onSignOut }) {
         </a>
       </nav>
 
-      <main>
+      <main id="main-content">
         <section id="inicio">
           <div className="logo-box rev">
             <img
@@ -352,15 +365,20 @@ function HomePage({ onSignOut }) {
 
 function LegacyApp({ app, session }) {
   const src = `${baseUrl}legacy/${encodeURIComponent(app.file)}`;
+  const frameRef = React.useRef(null);
   const [loadError, setLoadError] = React.useState("");
   const [syncError, setSyncError] = React.useState("");
   const [loaded, setLoaded] = React.useState(false);
+  const [frameLoaded, setFrameLoaded] = React.useState(false);
+  const [syncStatus, setSyncStatus] = React.useState("Dados carregados");
 
   React.useEffect(() => {
     let active = true;
     setLoaded(false);
+    setFrameLoaded(false);
     setLoadError("");
     setSyncError("");
+    setSyncStatus("Carregando os dados...");
 
     loadSystemState(app.id, session.user.id)
       .then(() => {
@@ -380,36 +398,163 @@ function LegacyApp({ app, session }) {
   React.useEffect(() => {
     if (!loaded) return undefined;
 
-    const prefix = getSystemStoragePrefix(app.id);
     let timeout;
     let saveQueue = Promise.resolve();
     let active = true;
 
-    const onStorage = (event) => {
-      if (!event.key?.startsWith(prefix)) return;
+    function replyToClinicalApp(message) {
+      frameRef.current?.contentWindow?.postMessage(
+        { systemId: app.id, ...message },
+        window.location.origin,
+      );
+    }
+
+    async function handlePatientHistoryMessage(message) {
+      if (message.type === "upa-patient-history-list") {
+        try {
+          const now = new Date().toISOString();
+          const { error: deleteError } = await supabase
+            .from("historico_pacientes")
+            .delete()
+            .eq("system_id", app.id)
+            .lte("expires_at", now);
+          if (deleteError) throw deleteError;
+
+          const { data, error } = await supabase
+            .from("historico_pacientes")
+            .select(
+              "id, system_id, patient_key, patient_name, record_number, snapshot, created_at, updated_at, expires_at",
+            )
+            .eq("system_id", app.id)
+            .gt("expires_at", now)
+            .order("updated_at", { ascending: false })
+            .limit(100);
+          if (error) throw error;
+
+          replyToClinicalApp({
+            type: "upa-patient-history-response",
+            requestId: message.requestId,
+            records: data || [],
+          });
+        } catch (error) {
+          replyToClinicalApp({
+            type: "upa-patient-history-response",
+            requestId: message.requestId,
+            error: error.message || "Não foi possível carregar o histórico.",
+          });
+        }
+        return;
+      }
+
+      if (message.type !== "upa-patient-history-save") return;
+      if (message.error) {
+        replyToClinicalApp({
+          type: "upa-patient-history-save-result",
+          error: message.error,
+        });
+        return;
+      }
+      if (
+        typeof message.patientKey !== "string" ||
+        !message.patientKey.trim() ||
+        typeof message.patientName !== "string" ||
+        !message.patientName.trim() ||
+        !message.snapshot ||
+        typeof message.snapshot !== "object" ||
+        Array.isArray(message.snapshot)
+      ) {
+        replyToClinicalApp({
+          type: "upa-patient-history-save-result",
+          patientName: message.patientName || "",
+          error: "Os dados de identificação do paciente estão incompletos.",
+        });
+        return;
+      }
+
+      try {
+        const { error: deleteError } = await supabase
+          .from("historico_pacientes")
+          .delete()
+          .eq("system_id", app.id)
+          .lte("expires_at", new Date().toISOString());
+        if (deleteError) throw deleteError;
+
+        const { error } = await supabase.from("historico_pacientes").upsert(
+          {
+            system_id: app.id,
+            patient_key: message.patientKey.trim(),
+            patient_name: message.patientName.trim(),
+            record_number: String(message.recordNumber || "").trim(),
+            snapshot: message.snapshot,
+            updated_by: session.user.id,
+          },
+          { onConflict: "system_id,patient_key" },
+        );
+        if (error) throw error;
+
+        replyToClinicalApp({
+          type: "upa-patient-history-save-result",
+          patientName: message.patientName,
+        });
+      } catch (error) {
+        replyToClinicalApp({
+          type: "upa-patient-history-save-result",
+          patientName: message.patientName,
+          error: error.message || "Não foi possível salvar o histórico.",
+        });
+      }
+    }
+
+    const onStorageChange = (event) => {
+      if (
+        event.origin !== window.location.origin ||
+        event.source !== frameRef.current?.contentWindow ||
+        event.data?.systemId !== app.id
+      ) {
+        return;
+      }
+
+      if (
+        event.data.type === "upa-patient-history-list" ||
+        event.data.type === "upa-patient-history-save"
+      ) {
+        void handlePatientHistoryMessage(event.data);
+        return;
+      }
+      if (event.data.type !== "upa-system-storage-changed") return;
 
       window.clearTimeout(timeout);
+      setSyncStatus("Salvando no banco de dados...");
       timeout = window.setTimeout(() => {
         saveQueue = saveQueue
           .then(() => saveLoadedSystemState(app.id, session.user.id))
           .then(() => {
-            if (active) setSyncError("");
+            if (active) {
+              setSyncError("");
+              setSyncStatus(
+                `Salvo no banco às ${new Date().toLocaleTimeString("pt-BR", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}`,
+              );
+            }
           })
           .catch((error) => {
             if (active) {
               setSyncError(
                 error.message || "Não foi possível sincronizar os dados.",
               );
+              setSyncStatus("Falha ao salvar");
             }
           });
       }, 700);
     };
 
-    window.addEventListener("storage", onStorage);
+    window.addEventListener("message", onStorageChange);
     return () => {
       active = false;
       window.clearTimeout(timeout);
-      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("message", onStorageChange);
     };
   }, [app.id, loaded, session.user.id]);
 
@@ -424,21 +569,74 @@ function LegacyApp({ app, session }) {
   }
 
   if (!loaded) {
-    return (
-      <main className="not-found" role="status">
-        <p>Carregando os dados do Supabase...</p>
-      </main>
-    );
+    return <LoadingScreen message="Carregando os dados do Supabase..." />;
   }
 
   return (
-    <main className="app-shell">
-      <iframe className="legacy-frame" title={app.title} src={src} />
-      {syncError && (
-        <div className="sync-error" role="alert">
-          Não foi possível sincronizar: {syncError}
+    <main className="app-shell" aria-busy={!frameLoaded}>
+      {!frameLoaded && (
+        <div className="frame-skeleton" role="status" aria-live="polite">
+          <span className="visually-hidden">Carregando {app.title}...</span>
+          <div className="skeleton-line skeleton-line-short" />
+          <div className="skeleton-card" />
+          <div className="skeleton-card skeleton-card-tall" />
         </div>
       )}
+      <iframe
+        ref={frameRef}
+        className={`legacy-frame${frameLoaded ? " frame-ready" : ""}`}
+        title={app.title}
+        src={src}
+        onLoad={() => {
+          setFrameLoaded(true);
+          setSyncStatus("Dados sincronizados");
+        }}
+      />
+      {frameLoaded && (
+        <div
+          className={`sync-status${syncError ? " sync-status-error" : ""}`}
+          role={syncError ? "alert" : "status"}
+          aria-live="polite"
+        >
+          <span className="sync-status-dot" aria-hidden="true" />
+          <span>{syncError ? "Falha na sincronização" : syncStatus}</span>
+          {syncError && (
+            <button
+              type="button"
+              onClick={() => {
+                setSyncStatus("Tentando salvar novamente...");
+                saveLoadedSystemState(app.id, session.user.id)
+                  .then(() => {
+                    setSyncError("");
+                    setSyncStatus("Salvo no banco de dados");
+                  })
+                  .catch((error) => {
+                    setSyncError(
+                      error.message || "Não foi possível sincronizar os dados.",
+                    );
+                    setSyncStatus("Falha ao salvar");
+                  });
+              }}
+            >
+              Tentar novamente
+            </button>
+          )}
+        </div>
+      )}
+    </main>
+  );
+}
+
+function LoadingScreen({ message }) {
+  return (
+    <main className="loading-screen" role="status" aria-live="polite">
+      <span className="visually-hidden">{message}</span>
+      <div className="loading-card" aria-hidden="true">
+        <div className="skeleton-line skeleton-line-short" />
+        <div className="skeleton-line" />
+        <div className="skeleton-line skeleton-line-medium" />
+        <div className="skeleton-card" />
+      </div>
     </main>
   );
 }
@@ -520,6 +718,7 @@ function SupabaseSetup() {
 
 function App() {
   const location = useLocation();
+  const navigate = useNavigate();
   const [session, setSession] = React.useState(null);
   const [authLoading, setAuthLoading] = React.useState(true);
   const [loginLoading, setLoginLoading] = React.useState(false);
@@ -575,6 +774,7 @@ function App() {
         password,
       });
       if (error) setAuthError(error.message);
+      else navigate("/", { replace: true });
     } catch (error) {
       setAuthError(error.message || "Não foi possível entrar.");
     } finally {
@@ -597,11 +797,7 @@ function App() {
 
   if (!supabaseConfigured) return <SupabaseSetup />;
   if (authLoading) {
-    return (
-      <main className="not-found" role="status">
-        <p>Verificando acesso...</p>
-      </main>
-    );
+    return <LoadingScreen message="Verificando acesso..." />;
   }
   if (!session) {
     return (

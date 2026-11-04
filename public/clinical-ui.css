@@ -1,0 +1,598 @@
+@media screen {
+  html[data-clinical-ui] {
+    color-scheme: light;
+    background: var(--color-canvas, #f3f6fa);
+    color: var(--color-ink, #172033);
+    font-family: Inter, "Segoe UI", system-ui, -apple-system, sans-serif;
+    font-size: 15px;
+    line-height: 1.5;
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  html[data-clinical-ui] body {
+    min-height: 100vh;
+    background: var(--color-canvas, #f3f6fa);
+    color: var(--color-ink, #172033);
+    font-family: inherit;
+    line-height: inherit;
+  }
+
+  html[data-clinical-ui] :where(button, input, select, textarea, a) {
+    font: inherit;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  html[data-clinical-ui] :where(button, a, input, select, textarea, [tabindex], [role="link"]):focus-visible {
+    outline: 3px solid var(--color-brand-500, #2563eb);
+    outline-offset: 3px;
+  }
+
+  html[data-clinical-ui] :where(button, input, select, textarea) {
+    border-radius: var(--radius-control, 10px);
+  }
+
+  html[data-clinical-ui] :where(button) {
+    min-height: 44px;
+    padding: 10px 16px;
+    box-shadow: 0 1px 2px rgb(15 35 65 / 10%);
+    transition: background-color 140ms ease, box-shadow 140ms ease,
+      transform 140ms ease;
+  }
+
+  html[data-clinical-ui] :where(button:hover:not(:disabled)) {
+    filter: brightness(0.96);
+  }
+
+  html[data-clinical-ui] :where(button:active:not(:disabled)) {
+    transform: translateY(1px);
+  }
+
+  html[data-clinical-ui] :where(button:disabled) {
+    cursor: not-allowed;
+    opacity: 0.62;
+  }
+
+  html[data-clinical-ui] :where(input:not([type="checkbox"]):not([type="radio"]), select, textarea) {
+    min-width: 0;
+    min-height: 44px;
+    padding: 10px 12px;
+    border: 1px solid var(--color-border, #d7dfeb);
+    background: var(--color-surface, #fff);
+    color: var(--color-ink, #172033);
+    transition: border-color 140ms ease, box-shadow 140ms ease;
+  }
+
+  html[data-clinical-ui] :where(input, select, textarea):focus-visible {
+    border-color: var(--color-brand-500, #2563eb);
+    box-shadow: var(--focus-ring, 0 0 0 3px rgb(37 99 235 / 22%));
+  }
+
+  html[data-clinical-ui] :where(input, select, textarea)::placeholder {
+    color: #788599;
+    opacity: 1;
+  }
+
+  html[data-clinical-ui] :where(textarea) {
+    min-height: 88px;
+    line-height: 1.5;
+  }
+
+  html[data-clinical-ui] :where(label) {
+    color: #354156;
+    font-size: 13px;
+    line-height: 1.4;
+  }
+
+  html[data-clinical-ui] :where(.topbar, header) {
+    background: var(--color-surface, #fff);
+    color: var(--color-ink, #172033);
+    box-shadow: 0 2px 10px rgb(15 35 65 / 7%);
+  }
+
+  html[data-clinical-ui] :where(.topbar) {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border-bottom: 1px solid #0719c4;
+    background: #0921f8;
+    color: #fff;
+    font-size: clamp(18px, 2vw, 22px);
+    padding: 16px clamp(16px, 3vw, 32px);
+  }
+
+  html[data-clinical-ui] .topbar-logo {
+    width: 48px;
+    height: 34px;
+    flex: 0 0 auto;
+    border-radius: 4px;
+    background: #fff;
+    object-fit: contain;
+    padding: 2px;
+  }
+
+  html[data-clinical-ui] :where(.topbar-logo, .brand-mark) {
+    cursor: pointer;
+  }
+
+  html[data-clinical-ui] .upa-history-trigger {
+    position: fixed;
+    left: 16px;
+    bottom: 16px;
+    z-index: 20;
+    min-height: 44px;
+    border: 0;
+    border-radius: 999px;
+    padding: 10px 16px;
+    background: var(--color-brand-600, #1d4ed8);
+    color: #fff;
+    font-weight: 800;
+    box-shadow: var(--shadow-float, 0 14px 36px rgb(15 35 65 / 14%));
+    cursor: pointer;
+  }
+
+  html[data-clinical-ui] .upa-history-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: grid;
+    place-items: center;
+    padding: 16px;
+    background: rgb(15 23 42 / 58%);
+  }
+
+  html[data-clinical-ui] .upa-history-overlay[hidden],
+  html[data-clinical-ui] .upa-history-toast[hidden] {
+    display: none;
+  }
+
+  html[data-clinical-ui] .upa-history-dialog {
+    display: grid;
+    width: min(760px, 100%);
+    max-height: min(82vh, 760px);
+    grid-template-rows: auto auto minmax(0, 1fr);
+    overflow: hidden;
+    border: 1px solid var(--color-border, #d7dfeb);
+    border-radius: var(--radius-card, 16px);
+    background: var(--color-surface, #fff);
+    color: var(--color-ink, #172033);
+    box-shadow: var(--shadow-float, 0 14px 36px rgb(15 35 65 / 14%));
+  }
+
+  html[data-clinical-ui] .upa-history-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 20px 22px 14px;
+    border-bottom: 1px solid var(--color-border, #d7dfeb);
+  }
+
+  html[data-clinical-ui] .upa-history-header h2 {
+    margin: 0;
+    color: var(--color-brand-700, #1e40af);
+    font-size: 20px;
+  }
+
+  html[data-clinical-ui] .upa-history-header p {
+    margin: 5px 0 0;
+    color: var(--color-muted, #5b677a);
+    font-size: 13px;
+  }
+
+  html[data-clinical-ui] .upa-history-close {
+    width: 40px;
+    min-width: 40px;
+    min-height: 40px;
+    padding: 0;
+    border: 1px solid var(--color-border, #d7dfeb);
+    background: var(--color-canvas, #f3f6fa);
+    color: var(--color-ink, #172033);
+    font-size: 22px;
+  }
+
+  html[data-clinical-ui] .upa-history-message {
+    margin: 0;
+    padding: 12px 22px 0;
+    color: var(--color-muted, #5b677a);
+    font-size: 13px;
+  }
+
+  html[data-clinical-ui] .upa-history-list {
+    display: grid;
+    align-content: start;
+    gap: 10px;
+    overflow: auto;
+    padding: 14px 22px 22px;
+  }
+
+  html[data-clinical-ui] .upa-history-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 14px;
+    border: 1px solid var(--color-border, #d7dfeb);
+    border-radius: var(--radius-control, 10px);
+    background: var(--color-surface, #fff);
+  }
+
+  html[data-clinical-ui] .upa-history-card h3 {
+    margin: 0;
+    color: var(--color-ink, #172033);
+    font-size: 15px;
+  }
+
+  html[data-clinical-ui] .upa-history-card p {
+    margin: 5px 0 0;
+    color: var(--color-muted, #5b677a);
+    font-size: 12px;
+    line-height: 1.5;
+  }
+
+  html[data-clinical-ui] .upa-history-print {
+    flex: 0 0 auto;
+    background: var(--color-brand-600, #1d4ed8);
+    color: #fff;
+  }
+
+  html[data-clinical-ui] .upa-history-toast {
+    position: fixed;
+    left: 16px;
+    bottom: 72px;
+    z-index: 1001;
+    max-width: min(90vw, 440px);
+    padding: 12px 16px;
+    border: 1px solid #a7dfc3;
+    border-radius: var(--radius-control, 10px);
+    background: #effaf4;
+    color: #087443;
+    font-size: 13px;
+    font-weight: 700;
+    box-shadow: var(--shadow-float, 0 14px 36px rgb(15 35 65 / 14%));
+  }
+
+  html[data-clinical-ui] .upa-history-toast-error {
+    border-color: #f0b5b9;
+    background: #fff1f2;
+    color: #b42332;
+  }
+
+  html[data-clinical-ui] :where(.brand h1, .section h2, .modal-head h2) {
+    color: var(--color-brand-700, #1e40af);
+  }
+
+  html[data-clinical-ui] :where(.app, .container) {
+    width: min(100%, 1680px);
+    margin-inline: auto;
+  }
+
+  html[data-clinical-ui] :where(.panel, .section, .card, .admin-box, .modal-panel, .scale-box) {
+    border: 1px solid var(--color-border, #d7dfeb);
+    border-radius: var(--radius-card, 16px);
+    background: var(--color-surface, #fff);
+    box-shadow: var(--shadow-card, 0 2px 8px rgb(15 35 65 / 6%));
+  }
+
+  html[data-clinical-ui] :where(.panel, .section) {
+    padding: clamp(14px, 2vw, 24px);
+  }
+
+  html[data-clinical-ui] :where(.section) {
+    margin-block: 16px;
+    scroll-margin-top: 156px;
+  }
+
+  html[data-clinical-ui] :where(.section h2) {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 18px;
+    border-bottom: 1px solid var(--color-border, #d7dfeb);
+    padding-bottom: 12px;
+    font-size: clamp(17px, 2vw, 21px);
+    line-height: 1.3;
+  }
+
+  html[data-clinical-ui] :where(.section h3, .admin-box h3, .panel h2) {
+    color: #29374d;
+    line-height: 1.35;
+  }
+
+  html[data-clinical-ui] :where(.cards, .summary) {
+    gap: 12px;
+  }
+
+  html[data-clinical-ui] :where(.cards .card, .summary .card) {
+    min-width: 0;
+    padding: 16px;
+    border-inline-start: 4px solid var(--color-brand-500, #2563eb);
+  }
+
+  html[data-clinical-ui] :where(.cards .card b, .summary .card .n) {
+    color: var(--color-brand-700, #1e40af);
+    font-variant-numeric: tabular-nums;
+  }
+
+  html[data-clinical-ui] :where(.grid, .grid-2, .grid-3, .row2, .row3, .actions, .toolbar, .checks) {
+    min-width: 0;
+    gap: 12px;
+  }
+
+  html[data-clinical-ui] :where(.check-option, .chip) {
+    min-height: 44px;
+    border-color: var(--color-border, #d7dfeb);
+    border-radius: 12px;
+    background: #f8faff;
+    line-height: 1.35;
+  }
+
+  html[data-clinical-ui] :where(.check-option input, .chip input) {
+    width: 20px;
+    height: 20px;
+    min-height: 20px;
+    flex: 0 0 auto;
+    accent-color: var(--color-brand-600, #1d4ed8);
+  }
+
+  html[data-clinical-ui] :where(.quick button, .templateBtns button) {
+    min-height: 40px;
+    border: 1px solid var(--color-border, #d7dfeb);
+    background: var(--color-brand-50, #eff6ff);
+    color: var(--color-brand-700, #1e40af);
+  }
+
+  html[data-clinical-ui] :where(.hint, .edit-note) {
+    border-radius: 12px;
+    line-height: 1.5;
+  }
+
+  html[data-clinical-ui] :where(.alertas, .alerta) {
+    line-height: 1.4;
+  }
+
+  html[data-clinical-ui] :where(table) {
+    border-color: var(--color-border, #d7dfeb);
+  }
+
+  html[data-clinical-ui] :where(th) {
+    line-height: 1.35;
+  }
+
+  html[data-clinical-ui] :where(.page, .risk-page) {
+    box-shadow: var(--shadow-float, 0 14px 36px rgb(15 35 65 / 14%));
+  }
+
+  html[data-clinical-ui] .section-nav {
+    position: sticky;
+    top: 112px;
+    z-index: 8;
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    margin: 0 0 16px;
+    border: 1px solid var(--color-border, #d7dfeb);
+    border-radius: 14px;
+    padding: 10px;
+    background: rgb(255 255 255 / 96%);
+    box-shadow: var(--shadow-card, 0 2px 8px rgb(15 35 65 / 6%));
+    scrollbar-width: thin;
+  }
+
+  html[data-clinical-ui] .section-nav a {
+    display: inline-flex;
+    min-height: 40px;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--color-border, #d7dfeb);
+    border-radius: 999px;
+    padding: 7px 14px;
+    background: #fff;
+    color: var(--color-brand-700, #1e40af);
+    font-size: 13px;
+    font-weight: 700;
+    text-decoration: none;
+  }
+
+  html[data-clinical-ui] .section-nav a:hover,
+  html[data-clinical-ui] .section-nav a[aria-current="location"] {
+    border-color: var(--color-brand-500, #2563eb);
+    background: var(--color-brand-50, #eff6ff);
+  }
+
+  html[data-clinical-ui] .section-nav-title {
+    align-self: center;
+    flex: 0 0 auto;
+    padding-inline: 8px;
+    color: var(--color-muted, #5b677a);
+    font-size: 12px;
+    font-weight: 800;
+  }
+
+  html[data-clinical-ui] :where(.main td, .risk-page, .risk-page .content) {
+    line-height: 1.5;
+  }
+
+  html[data-clinical-ui] :where(.map) {
+    border-color: var(--color-border, #d7dfeb);
+    border-radius: 14px;
+    scrollbar-width: thin;
+  }
+
+  html[data-clinical-ui] :where(.setor-title) {
+    line-height: 1.4;
+  }
+
+  html[data-clinical-ui] :where(.empty) {
+    display: grid;
+    min-height: 144px;
+    place-items: center;
+    padding: 24px;
+    line-height: 1.5;
+  }
+
+  html[data-clinical-ui] .status-visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    clip-path: inset(50%);
+  }
+
+  @media (max-width: 950px) {
+    html[data-clinical-ui] :where(.cards) {
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
+    }
+
+    html[data-clinical-ui] :where(.grid, .grid-2, .grid-3) {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    html[data-clinical-ui] :where(.app) {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+
+  @media (max-width: 600px) {
+    html[data-clinical-ui] :where(.container) {
+      padding: 12px;
+    }
+
+    html[data-clinical-ui] :where(.grid, .grid-2, .grid-3) {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    html[data-clinical-ui] :where(.row2) {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    html[data-clinical-ui] :where(.actions, .toolbar) {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    html[data-clinical-ui] .section-nav {
+      top: 80px;
+      margin-inline: -4px;
+    }
+
+    html[data-clinical-ui] :where(.section) {
+      scroll-margin-top: 132px;
+    }
+
+    html[data-clinical-ui] :where(.page, .risk-page) {
+      box-shadow: none;
+    }
+  }
+
+  @media (max-width: 760px) {
+    html[data-clinical-ui="dietas"] .map table,
+    html[data-clinical-ui="dietas"] .map tbody {
+      display: block;
+      width: 100%;
+      min-width: 0;
+    }
+
+    html[data-clinical-ui="dietas"] .map thead {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+
+    html[data-clinical-ui="dietas"] .map tr {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      margin: 10px;
+      border: 1px solid var(--color-border, #d7dfeb);
+      border-radius: 14px;
+      padding: 12px;
+      background: #fff;
+      box-shadow: var(--shadow-card, 0 2px 8px rgb(15 35 65 / 6%));
+    }
+
+    html[data-clinical-ui="dietas"] .map td {
+      display: grid;
+      grid-template-columns: minmax(76px, 0.42fr) minmax(0, 1fr);
+      align-items: start;
+      gap: 6px;
+      min-width: 0;
+      border: 0;
+      padding: 4px 0;
+      overflow-wrap: anywhere;
+      font-size: 13px;
+    }
+
+    html[data-clinical-ui="dietas"] .map td:nth-child(1),
+    html[data-clinical-ui="dietas"] .map td:nth-child(2) {
+      grid-column: 1 / -1;
+    }
+
+    html[data-clinical-ui="dietas"] .map td:nth-child(1) {
+      border-bottom: 1px solid var(--color-border, #d7dfeb);
+      padding-bottom: 8px;
+      color: var(--color-brand-700, #1e40af);
+      font-size: 15px;
+      font-weight: 800;
+    }
+
+    html[data-clinical-ui="dietas"] .map td:nth-child(2) {
+      font-size: 14px;
+    }
+
+    html[data-clinical-ui="dietas"] .map td:nth-child(n + 3)::before {
+      color: var(--color-muted, #5b677a);
+      font-size: 11px;
+      font-weight: 800;
+      line-height: 1.4;
+    }
+
+    html[data-clinical-ui="dietas"] .map td:nth-child(3)::before { content: "Dieta"; }
+    html[data-clinical-ui="dietas"] .map td:nth-child(4)::before { content: "Via"; }
+    html[data-clinical-ui="dietas"] .map td:nth-child(5)::before { content: "Acompanhante"; }
+    html[data-clinical-ui="dietas"] .map td:nth-child(6)::before { content: "Motivo"; }
+    html[data-clinical-ui="dietas"] .map td:nth-child(7)::before { content: "Internação"; }
+    html[data-clinical-ui="dietas"] .map td:nth-child(8)::before { content: "Tempo"; }
+    html[data-clinical-ui="dietas"] .map td:nth-child(9)::before { content: "Restrições"; }
+    html[data-clinical-ui="dietas"] .map td:nth-child(10)::before { content: "Alergias"; }
+    html[data-clinical-ui="dietas"] .map td:nth-child(11)::before { content: "Observações"; }
+    html[data-clinical-ui="dietas"] .map td:nth-child(12)::before { content: "Status"; }
+  }
+}
+
+@media print {
+  html[data-clinical-ui] .section-nav {
+    display: none !important;
+  }
+
+  html[data-clinical-ui] .upa-history-trigger,
+  html[data-clinical-ui] .upa-history-overlay,
+  html[data-clinical-ui] .upa-history-toast {
+    display: none !important;
+  }
+}
+
+@media screen and (max-width: 600px) {
+  html[data-clinical-ui] .upa-history-trigger {
+    left: 12px;
+    bottom: 12px;
+  }
+
+  html[data-clinical-ui] .upa-history-toast {
+    left: 12px;
+    bottom: 66px;
+    max-width: none;
+  }
+
+  html[data-clinical-ui] .upa-history-card {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

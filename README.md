@@ -14,7 +14,11 @@ npm run dev
 
 Preencha `VITE_SUPABASE_PUBLISHABLE_KEY` em `.env.local` com a chave pública anon/publishable do projeto. Antes do primeiro acesso, execute `supabase/schema.sql` no SQL Editor do Supabase. Nunca use a chave `service_role` no aplicativo.
 
+Para ativar o histórico clínico de 7 dias, execute também `supabase/history.sql` no SQL Editor. Esse script cria a tabela protegida por RLS e agenda a exclusão horária de registros vencidos com a extensão `pg_cron`.
+
 O comando `prepare:legacy` copia as páginas existentes para `public/legacy` e injeta a ponte de armazenamento antes do desenvolvimento e da build.
+
+As quatro telas usam tokens de cor e espaçamento compartilhados, controles com estados de foco, componentes responsivos e navegação rápida entre as seções de enfermagem. A sincronização informa quando os dados estão sendo salvos e oferece uma nova tentativa em caso de falha.
 
 ## GitHub Pages
 
@@ -53,6 +57,7 @@ As quatro primeiras telas continuam implementadas nos HTMLs originais e são abe
 - Como o acesso foi configurado com uma conta compartilhada, não é possível identificar qual profissional fez cada alteração. Alterações simultâneas na mesma tela podem se sobrescrever; contas individuais são recomendadas para uso clínico.
 - Os dados locais existentes são migrados para a tabela correspondente na primeira abertura quando a tabela ainda não possui uma linha.
 - Ao sair, o cache local dos quatro sistemas é removido; as páginas clínicas abertas fora do portal não exibem os dados.
+- O botão **Histórico (7 dias)** aparece em cada sistema. Cabeceira, Processo e SAE atualizam automaticamente uma ficha após 2 segundos sem alterações, quando nome e prontuário estão preenchidos; o Mapa de Dietas registra a ficha ao adicioná-la ao mapa. A ficha é compartilhada pelo Supabase, pode ser impressa e expira 7 dias após a última atualização.
 
 Para autorizar a conta criada no Supabase, substitua o UUID pelo ID exibido em **Authentication → Users** e execute no SQL Editor:
 
